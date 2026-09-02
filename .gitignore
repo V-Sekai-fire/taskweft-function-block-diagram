@@ -1,0 +1,12 @@
+.DS_Store
+__pycache__/
+*.pyc
+.pixi/
+_build/
+deps/
+.elixir_ls/
+.lake/
+build/
+priv/*.so
+priv/*.dylib
+priv/*.dll

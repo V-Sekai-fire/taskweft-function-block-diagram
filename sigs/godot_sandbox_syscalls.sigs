@@ -1,0 +1,101 @@
+# The godot-sandbox / libriscv guest -> host ECALL surface.
+#
+# Extracted verbatim from libriscv/godot-sandbox's src/syscalls.h at
+# HEAD (v0.54, Aug 2026), MIT. Every entry is a Linux-style RISC-V
+# `ecall` number the guest program raises with `li a7, <num>` before
+# `ecall`. `GAME_API_BASE` is 500.
+#
+# This sits alongside iceoryx2.sigs in the same convention: one
+# declaration per line, `#` comments, feeds a code generator that
+# produces the ecall wrappers the two-impl compiler (RFD 2154) links
+# into every emitted ELF.
+#
+# Source of truth: libriscv/godot-sandbox src/syscalls.h. When they
+# renumber or add, this file updates and the wrappers regenerate.
+
+# ---- Format: `<decimal ecall number>  <symbol>  <notes>` ------
+
+# --- generic ---
+500  ECALL_PRINT                     # print variant(s) to godot's console
+550  ECALL_PRINT_CHANNEL             # print to a named channel
+511  ECALL_THROW                     # raise a guest exception up to godot
+
+# --- variant lifecycle ---
+517  ECALL_VCREATE                   # construct a variant from a type tag
+518  ECALL_VCLONE                    # deep copy
+519  ECALL_VFETCH                    # host -> guest variant retrieval
+520  ECALL_VSTORE                    # guest -> host variant storage
+559  ECALL_VSTORE_GLOBAL             # named global variant
+558  ECALL_VCONSTRUCT                # ctor-invoke a variant type
+501  ECALL_VCALL                     # call a variant method
+502  ECALL_VEVAL                     # variant binary operator
+503  ECALL_VASSIGN                   # variant assignment
+561  ECALL_VCALL_SUPER               # super() call from a bound class
+562  ECALL_VARIANT_GET               # field/index get on a variant
+555  ECALL_VSCOPE                    # scoped variant lifetime marker
+
+# --- object api ---
+504  ECALL_GET_OBJ                   # look up an Object by name
+505  ECALL_OBJ                       # generic Object function dispatch
+506  ECALL_OBJ_CALLP                 # Object.call() with N args
+545  ECALL_OBJ_PROP_GET              # Object property getter
+546  ECALL_OBJ_PROP_SET              # Object property setter
+556  ECALL_OBJ_RETAIN                # ref-count bump on an Object handle
+563  ECALL_OBJ_USES_TRAIT            # trait-check on an Object
+
+# --- node api ---
+507  ECALL_GET_NODE                  # look up a Node by path
+508  ECALL_NODE                      # Node function dispatch
+509  ECALL_NODE2D                    # Node2D dispatch
+510  ECALL_NODE3D                    # Node3D dispatch
+532  ECALL_NODE_CREATE               # instantiate a Node
+
+# --- collections ---
+521  ECALL_ARRAY_OPS                 # Godot Array operations
+522  ECALL_ARRAY_AT                  # index
+523  ECALL_ARRAY_SIZE                # length
+564  ECALL_ARRAY_BATCH               # bulk push/pop
+524  ECALL_DICTIONARY_OPS            # Godot Dictionary
+548  ECALL_PACKED_ARRAY_OPS          # PackedByteArray / typed arrays
+
+# --- strings ---
+525  ECALL_STRING_CREATE
+526  ECALL_STRING_OPS
+527  ECALL_STRING_AT
+528  ECALL_STRING_SIZE
+529  ECALL_STRING_APPEND
+557  ECALL_STRING_BATCH
+565  ECALL_STRING_CODEPOINT_BATCH
+
+# --- math primitives ---
+513  ECALL_SINCOS
+514  ECALL_VEC2_LENGTH
+515  ECALL_VEC2_NORMALIZED
+516  ECALL_VEC2_ROTATED
+543  ECALL_VEC2_OPS
+537  ECALL_VEC3_OPS
+544  ECALL_QUAT_OPS
+540  ECALL_TRANSFORM_2D_OPS
+541  ECALL_TRANSFORM_3D_OPS
+542  ECALL_BASIS_OPS
+533  ECALL_MATH_OP32
+534  ECALL_MATH_OP64
+535  ECALL_LERP_OP32
+536  ECALL_LERP_OP64
+
+# --- timers, callables, control flow ---
+530  ECALL_TIMER_PERIODIC
+531  ECALL_TIMER_STOP
+538  ECALL_CALLABLE_CREATE
+554  ECALL_CALL_GUEST                # host -> guest callback
+552  ECALL_AWAIT                     # cooperative yield
+553  ECALL_AWAIT_RESTORE
+
+# --- runtime introspection ---
+512  ECALL_IS_EDITOR                 # runtime vs editor
+539  ECALL_LOAD                      # dynamic load
+547  ECALL_SANDBOX_ADD               # extra sandbox slot
+549  ECALL_UTILITY                   # misc utility ops
+551  ECALL_BREAKPOINT                # debugger hook
+560  ECALL_CLASS_BIND                # register a guest class
+566  ECALL_LAST                      # highest allocated (currently)

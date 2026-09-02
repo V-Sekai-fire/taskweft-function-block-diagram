@@ -1,0 +1,70 @@
+# VRChat Udon extern surface — the OTHER HALF of `vrchat_udon_asm.sigs`.
+#
+# Rung 0: the extern signatures a rung-0 FBD-to-Udon emitter names in
+# EXTERN / EXTERN_GET / EXTERN_SET operands to reach the world. The
+# uasm side has the opcodes; this side has the strings those opcodes
+# pass to the runtime's extern resolver.
+#
+# Source: vrchat-community/UdonSharp (MIT) — extern signatures are
+# resolved through `UdonSharp.Compiler.Binder.BindContext` against
+# VRChat's `UdonManager` at runtime. Signatures are stringly-typed:
+# `<Namespace>.<Type>.<__Method>_<argTypes>_<retType>`. This file
+# names the shape and gives the rung-0 subset our emitter uses.
+#
+# Format: `<extern-signature-string>  # <sense: GET|SET|CALL>  <notes>`
+
+# ---- signature grammar --------------------------------------------
+# `<Ns>.<Type>.__<Method>__<ArgType1>_<ArgType2>__<RetType>`
+# Namespaces we hit: UnityEngine, VRC.SDKBase, VRC.Udon.Common
+# Void return is written as `__SystemVoid`.
+
+# ---- state observation (drives RFD 2149 done-flag polling) --------
+
+VRCUdonCommonInterfacesIUdonEventReceiver.__RunProgram__SystemString__SystemVoid            # CALL  fire a named export
+VRCUdonCommonInterfacesIUdonEventReceiver.__GetProgramVariable__SystemString__SystemObject  # GET   read a bound symbol
+VRCUdonCommonInterfacesIUdonEventReceiver.__SetProgramVariable__SystemString_SystemObject__SystemVoid  # SET  write a bound symbol
+
+# ---- scene actors (mirrors the Godot rung-0 shape) ----------------
+
+UnityEngineGameObject.__get_activeSelf__SystemBoolean                                       # GET   is-active
+UnityEngineGameObject.__SetActive__SystemBoolean__SystemVoid                                # CALL  activate/deactivate
+UnityEngineGameObject.__GetComponent__T_UnityEngineTransform__UnityEngineTransform          # CALL  fetch transform
+UnityEngineTransform.__get_position__UnityEngineVector3                                     # GET   world position
+UnityEngineTransform.__set_position__UnityEngineVector3__SystemVoid                         # SET   world position
+UnityEngineTransform.__get_rotation__UnityEngineQuaternion                                  # GET   world rotation
+UnityEngineTransform.__set_rotation__UnityEngineQuaternion__SystemVoid                      # SET   world rotation
+UnityEngineTransform.__get_localScale__UnityEngineVector3                                   # GET
+
+# ---- math (host-side, called via extern rather than uasm ops) -----
+
+UnityEngineVector3.__ctor__SystemSingle_SystemSingle_SystemSingle__UnityEngineVector3       # CALL  Vec3(x,y,z)
+UnityEngineVector3.__op_Addition__UnityEngineVector3_UnityEngineVector3__UnityEngineVector3
+UnityEngineVector3.__Distance__UnityEngineVector3_UnityEngineVector3__SystemSingle
+UnityEngineQuaternion.__Euler__SystemSingle_SystemSingle_SystemSingle__UnityEngineQuaternion
+UnityEngineMathf.__Sin__SystemSingle__SystemSingle
+UnityEngineMathf.__Cos__SystemSingle__SystemSingle
+
+# ---- timing (RFD 2143 GRAFCET clock, mapped onto Update) ----------
+
+UnityEngineTime.__get_deltaTime__SystemSingle                                               # GET
+UnityEngineTime.__get_fixedDeltaTime__SystemSingle                                          # GET
+UnityEngineTime.__get_time__SystemSingle                                                    # GET
+
+# ---- VRChat-only (players, networking, ownership) -----------------
+
+VRCSDKBaseVRCPlayerApi.__get_LocalPlayer__VRCSDKBaseVRCPlayerApi                            # GET
+VRCSDKBaseVRCPlayerApi.__IsOwner__VRCSDKBaseVRCPlayerApi_UnityEngineGameObject__SystemBoolean
+VRCSDKBaseNetworking.__SetOwner__VRCSDKBaseVRCPlayerApi_UnityEngineGameObject__SystemVoid
+VRCSDKBaseUdonBehaviour.__SendCustomEvent__SystemString__SystemVoid                         # CALL  named-event dispatch
+VRCSDKBaseUdonBehaviour.__SendCustomNetworkEvent__VRCUdonCommonInterfacesNetworkEventTarget_SystemString__SystemVoid
+
+# ---- input --------------------------------------------------------
+
+UnityEngineInput.__GetKey__UnityEngineKeyCode__SystemBoolean                                # CALL
+UnityEngineInput.__GetAxis__SystemString__SystemSingle                                      # CALL
+
+# ---- rule for the emitter -----------------------------------------
+# Every extern string above is a slot the UdonManager binds at world-
+# load time. An unknown signature is a load-time reject (the world
+# refuses to start); the emitter validates against this file at
+# compile time so an unknown one fails at .uasm build, not at upload.

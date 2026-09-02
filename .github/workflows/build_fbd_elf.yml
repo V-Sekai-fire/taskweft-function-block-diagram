@@ -1,0 +1,67 @@
+# Cross-compile taskweft-fbd-compiler to a RISC-V Linux ELF that
+# libriscv/godot-sandbox loads. Mirrors godot-sandbox's own
+# `build_gdscript_elf.yml` (BSD-3-Clause; recipe reused with
+# attribution) so the sandbox_api runtime shim, linker flags, and
+# artifact shape match `gdscript.elf` byte-for-byte in the parts
+# libriscv reads. See RFD 2153.
+#
+# Today the compiler body is a C++ placeholder (riscv_ci/main.cpp).
+# It swaps for Lean-emitted C once either:
+#   - upstream RFC leanprover/lean4#12655 lands (native riscv64-linux),
+#   - or a workspace-local port of Lean's runtime to riscv64-linux-gnu
+#     lands (RFD 2153 stage 3).
+# The CI shape here does not change either way.
+
+name: Build FBD Compiler ELF
+
+on:
+  workflow_call:
+  workflow_dispatch:
+  push:
+    paths:
+      - riscv_ci/**
+      - .github/workflows/build_fbd_elf.yml
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    name: Build taskweft_fbd_compiler.elf
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Install RISC-V cross-compiler (Debian/Ubuntu APT)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            gcc-14-riscv64-linux-gnu \
+            g++-14-riscv64-linux-gnu \
+            cmake
+
+      - name: Configure
+        env:
+          CC:  riscv64-linux-gnu-gcc-14
+          CXX: riscv64-linux-gnu-g++-14
+        run: |
+          cmake -B build \
+            -DCMAKE_BUILD_TYPE=MinSizeRel \
+            -DSTRIPPED=ON \
+            -S riscv_ci
+
+      - name: Build
+        run: cmake --build build --parallel 4
+
+      - name: Rename artifact
+        run: mv build/taskweft_fbd_compiler build/taskweft_fbd_compiler.elf
+
+      - name: Verify ELF
+        run: file build/taskweft_fbd_compiler.elf
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: taskweft-fbd-compiler-elf
+          path: build/taskweft_fbd_compiler.elf
+          if-no-files-found: error

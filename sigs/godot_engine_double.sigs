@@ -1,0 +1,63 @@
+# Godot 4.7 engine, DOUBLE-precision build (`real_t = double`).
+#
+# NOT THE SOURCE OF TRUTH. Same rule as `godot_engine_single.sigs`:
+# godot-sandbox's `Sandbox.generate_api` emits the real C++ header,
+# and the sandbox `.so`/`.dll` the addon selected at load time
+# decides whether `real_t` was compiled as `float` or `double`. The
+# `mix godot.dump_api` task tags the copy on the way in so RFD 2154
+# knows which sibling it wrote (`api_cpp.hpp` vs `api_cpp_double.hpp`).
+# The delta below is only the size-and-type notes a reader wants next
+# to the ABI switch.
+#
+# Format: same as the single-precision file. Only entries whose
+# signature CHANGES under double are listed; every other row from
+# `godot_engine_single.sigs` reads through unchanged.
+#
+# Source: godot-cpp @ 10.0.0-rc2 built with `precision=double`;
+# canonical rule at godotengine/godot `core/math/math_defs.h`:
+#   `typedef double real_t;` when GODOT_REAL_T_IS_DOUBLE.
+
+# ---- 2D transforms ------------------------------------------------
+
+Node2D.set_position(position: Vector2)                # Vector2 = <double, double>
+Node2D.set_rotation(radians: double) ->
+Node2D.get_rotation() -> double
+
+# ---- 3D transforms ------------------------------------------------
+
+Node3D.set_transform(local: Transform3D)              # Transform3D holds double basis + origin
+Node3D.get_transform() -> Transform3D                 # ditto
+Node3D.set_position(position: Vector3) ->             # Vector3 = <double, double, double>
+Node3D.get_position() -> Vector3
+
+# ---- built-in math ------------------------------------------------
+
+Vector2.angle() -> double
+Vector2.length() -> double
+Vector3.length() -> double
+Vector3.dot(with) -> double
+Vector3.cross(with) -> Vector3
+Transform3D.inverse() -> Transform3D
+Transform3D.orthonormalized() -> Transform3D
+Basis.determinant() -> double
+Quaternion.normalized() -> Quaternion
+
+# ---- physics + camera ---------------------------------------------
+
+RigidBody3D.set_mass(mass: double) ->
+Camera3D.project_ray_normal(screen_point: Vector2) -> Vector3
+Camera3D.unproject_position(world_point: Vector3) -> Vector2
+
+# ---- built-in class sizes (`builtin_class_sizes` in extension_api) -
+# Vector2 = 16 (2 * f64)      # single: 8
+# Vector3 = 24                # single: 12
+# Transform3D = 96            # single: 48
+# Basis = 72                  # single: 36
+# Quaternion = 32             # single: 16
+# Color STAYS 16 (Color is always 4 * float32)
+
+# ---- rule for the emitter -----------------------------------------
+# `real_t` size + alignment come from `builtin_class_sizes` in the
+# selected extension_api.json (single vs double). The stub generator
+# reads one file and writes one ABI; mixing is an ABI break the
+# sandbox rejects at load time.

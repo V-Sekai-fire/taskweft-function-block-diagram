@@ -1,0 +1,101 @@
+# Godot 4.7 engine C++ API surface (single-precision `real_t = float`).
+#
+# NOT THE SOURCE OF TRUTH. This is a hand-curated rung-0 INDEX; the
+# authoritative header is produced by godot-sandbox's own stub
+# generator via `Sandbox.generate_api("cpp", "", true)`. Run
+# `mix godot.dump_api` in taskweft-godot-sandbox to write it under
+# `taskweft-fbd-compiler/priv/godot_api/api_cpp.hpp`; the FBD
+# compiler consumes that header, not this file. The 40 entries here
+# are the classes the rung-0 emitter names, kept as a readable
+# reference and as the check-list the anti-entropy pass compares
+# against the generated header.
+#
+# Rung 1 adds Input, Physics2D/3DDirectState, RenderingServer draw ops;
+# rung 2 defers to whatever the generated header contains.
+#
+# Format: `<Class>.<method>(<arg names>) -> <return type>`.
+# Enums come through as `enum::Namespace.Name`. Empty `->` = void.
+
+# ---- core object model --------------------------------------------
+
+Object.get_class() -> String
+Object.get(property) -> Variant
+Object.set(property, value) ->
+Object.call(method) -> Variant
+Object.connect(signal, callable) -> enum::Error
+RefCounted.reference() -> bool
+RefCounted.unreference() -> bool
+RefCounted.get_reference_count() -> int
+Resource.get_path() -> String
+Resource.duplicate(subresources) -> Resource
+
+# ---- scene tree ---------------------------------------------------
+
+Node._process(delta) ->
+Node._physics_process(delta) ->
+Node._enter_tree() ->
+Node._exit_tree() ->
+Node.get_node(path) -> Node
+Node.add_child(node, force_readable_name, internal) ->
+Node.queue_free() ->
+SceneTree.get_root() -> Window
+SceneTree.change_scene_to_file(path) -> enum::Error
+MainLoop._process(delta) -> bool
+
+# ---- 2D and 3D transforms ----------------------------------------
+
+Node2D.set_position(position) ->
+Node2D.set_rotation(radians) ->
+Node3D.set_transform(local) ->
+Node3D.get_transform() -> Transform3D
+Node3D.set_position(position) ->
+Node3D.get_position() -> Vector3
+
+# ---- built-in math (single-precision float) -----------------------
+
+Vector2.angle() -> float
+Vector2.length() -> float
+Vector3.length() -> float
+Vector3.dot(with) -> float
+Vector3.cross(with) -> Vector3
+Transform3D.inverse() -> Transform3D
+Transform3D.orthonormalized() -> Transform3D
+Basis.determinant() -> float
+Quaternion.normalized() -> Quaternion
+Color.to_argb32() -> int
+
+# ---- strings and collections --------------------------------------
+
+String.length() -> int
+StringName.hash() -> int
+Array.size() -> int
+Array.push_back(value) ->
+Dictionary.size() -> int
+Dictionary.has(key) -> bool
+PackedByteArray.size() -> int
+
+# ---- typical scene actors -----------------------------------------
+
+Sprite2D.set_texture(texture) ->
+MeshInstance3D.set_mesh(mesh) ->
+CollisionShape3D.set_shape(shape) ->
+RigidBody3D.set_mass(mass) ->
+Area3D.get_overlapping_bodies() -> Array
+Camera3D.project_ray_normal(screen_point) -> Vector3
+Camera3D.unproject_position(world_point) -> Vector2
+
+# ---- ui, timers, loading ------------------------------------------
+
+Label.set_text(text) ->
+Button.set_text(text) ->
+Timer.start(time_sec) ->
+Timer.stop() ->
+AnimationPlayer.play(name, custom_blend, custom_speed, from_end) ->
+ResourceLoader.load(path, type_hint, cache_mode) -> Resource
+
+# ---- runtime introspection ----------------------------------------
+
+Engine.get_physics_ticks_per_second() -> int
+OS.get_ticks_msec() -> int
+Time.get_ticks_msec() -> int
+Input.is_action_pressed(action, exact_match) -> bool

@@ -1,0 +1,52 @@
+# VRChat Udon assembly (`uasm`) surface area.
+#
+# The full instruction set + directives an Udon assembler accepts.
+# Extracted from UdonSharp's own assembly emitter (MIT,
+# vrchat-community/UdonSharp @ HEAD, Aug 2026):
+#   Packages/com.vrchat.UdonSharp/Editor/Compiler/Assembly/
+#     AssemblyInstruction.cs    (opcodes)
+#     AssemblyModule.cs         (directives, section markers)
+#
+# This is the target for RFD 2148 stage 1 (FBD -> Udon assembly,
+# bypassing C# per the BLOCKLIST row on C#-as-an-FBD-intermediate).
+# The compiler emits one .uasm file per POU; VRChat SDK's Udon
+# assembler compiles that to Udon bytecode a UdonBehaviour executes.
+#
+# Format: one entry per line. `#` starts a comment. Every opcode
+# entry gives its mnemonic and the operand shape the assembler
+# parses. Every directive gives its shape and where it appears.
+
+# ---- Section markers ------------------------------------------
+
+.data_start                              # begins the data (symbol) section
+.data_end                                # ends the data section
+.code_start                              # begins the code section
+.code_end                                # ends the code section
+
+# ---- Data section directives (inside .data_start/.data_end) ---
+
+.export <symbol>                         # mark a symbol as exported (visible to Udon)
+.sync <symbol>, none                     # no network sync
+.sync <symbol>, linear                   # linear interpolation sync
+.sync <symbol>, smooth                   # smooth interpolation sync
+
+# ---- Code section directives ----------------------------------
+
+.export <method_address>                 # exported method entry
+<method_address>:                        # label at an entry address
+
+# ---- Opcodes (from UdonSharp's InstructionKind enum) ----------
+# Each instruction is 4 bytes wide unless noted; comments are 0.
+
+NOP                                      # do nothing
+POP                                      # pop top of value stack
+PUSH, <symbol>                           # push a value's slot onto the stack
+COPY                                     # pop two, write top into second's slot
+JUMP, 0x<addr>                           # unconditional 32-bit jump
+JUMP_IF_FALSE, 0x<addr>                  # pop; jump if the boolean is false
+JUMP_INDIRECT, <symbol>                  # jump to the address stored in the symbol
+EXTERN, "<extern_signature>"             # call a VRChat-registered extern
+EXTERN_SET, "<extern_signature>"         # set-shape extern (host writes a slot)
+EXTERN_GET, "<extern_signature>"         # get-shape extern (host reads a slot)
+RETURN                                   # return from the current export
+# <text>                                 # comment; 0 bytes emitted

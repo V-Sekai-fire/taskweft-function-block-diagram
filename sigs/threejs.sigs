@@ -1,0 +1,83 @@
+# three.js — WebGL scene runtime (JS/TS).
+#
+# Rung 0: the 40 classes a rung-0 FBD-to-JS emitter reaches to render
+# a RECTGTN scene in a browser. Source: mrdoob/three.js @ r166
+# `docs/api/en/` (MIT). Rung 1 adds loaders (GLTFLoader, TextureLoader,
+# DRACOLoader); rung 2 covers the full postprocessing + node-material
+# graph.
+#
+# Format: `<Class>.<member>(<args>) -> <return>`. Properties are
+# `<Class>.<prop>: <type>` and appear alongside methods on the class.
+
+# ---- renderer + loop ---------------------------------------------
+
+WebGLRenderer.constructor(parameters) -> WebGLRenderer
+WebGLRenderer.setSize(width, height, updateStyle) -> void
+WebGLRenderer.setPixelRatio(value) -> void
+WebGLRenderer.render(scene, camera) -> void
+WebGLRenderer.setAnimationLoop(callback) -> void
+WebGLRenderer.dispose() -> void
+
+# ---- scene graph -------------------------------------------------
+
+Object3D.position: Vector3
+Object3D.rotation: Euler
+Object3D.quaternion: Quaternion
+Object3D.scale: Vector3
+Object3D.matrix: Matrix4
+Object3D.add(object) -> Object3D
+Object3D.remove(object) -> Object3D
+Object3D.lookAt(vector) -> void
+Object3D.traverse(callback) -> void
+Scene.constructor() -> Scene
+Scene.background: Color | Texture
+Group.constructor() -> Group
+
+# ---- cameras -----------------------------------------------------
+
+PerspectiveCamera.constructor(fov, aspect, near, far) -> PerspectiveCamera
+PerspectiveCamera.updateProjectionMatrix() -> void
+OrthographicCamera.constructor(left, right, top, bottom, near, far) -> OrthographicCamera
+
+# ---- meshes, geometry, materials ---------------------------------
+
+Mesh.constructor(geometry, material) -> Mesh
+InstancedMesh.constructor(geometry, material, count) -> InstancedMesh
+BufferGeometry.constructor() -> BufferGeometry
+BufferGeometry.setAttribute(name, attribute) -> BufferGeometry
+BufferGeometry.setIndex(index) -> BufferGeometry
+BufferAttribute.constructor(array, itemSize, normalized) -> BufferAttribute
+BoxGeometry.constructor(width, height, depth) -> BoxGeometry
+SphereGeometry.constructor(radius, widthSegments, heightSegments) -> SphereGeometry
+PlaneGeometry.constructor(width, height) -> PlaneGeometry
+MeshBasicMaterial.constructor(parameters) -> MeshBasicMaterial
+MeshStandardMaterial.constructor(parameters) -> MeshStandardMaterial
+
+# ---- lights ------------------------------------------------------
+
+AmbientLight.constructor(color, intensity) -> AmbientLight
+DirectionalLight.constructor(color, intensity) -> DirectionalLight
+PointLight.constructor(color, intensity, distance, decay) -> PointLight
+
+# ---- math primitives ---------------------------------------------
+
+Vector3.constructor(x, y, z) -> Vector3
+Vector3.set(x, y, z) -> Vector3
+Vector3.add(v) -> Vector3
+Vector3.normalize() -> Vector3
+Quaternion.setFromEuler(euler) -> Quaternion
+Euler.constructor(x, y, z, order) -> Euler
+Matrix4.identity() -> Matrix4
+Color.constructor(r, g, b) -> Color
+Clock.constructor(autoStart) -> Clock
+Clock.getDelta() -> float
+
+# ---- events + clocks ---------------------------------------------
+
+Object3D.userData: object                                              # emitter parks FBD symbol names here
+
+# ---- rule for the emitter ----------------------------------------
+# The RECTGTN plan lowers to one `Object3D.userData.done_*` per SR_L,
+# one `setAnimationLoop` callback that runs the FBD scan cycle each
+# frame, and `Clock.getDelta()` feeding every TON's accumulator.
+# MOVE writes a `position`/`rotation` field directly.

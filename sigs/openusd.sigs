@@ -1,0 +1,93 @@
+# OpenUSD — Pixar's Universal Scene Description.
+#
+# Rung 0: the ~45 API symbols an RFD-2155 USD writer reaches to author
+# the intermediate `.usda` that carries source FBD + all delivery
+# formats side by side. Source: PixarAnimationStudios/OpenUSD @ 25.05
+# public C++ API under `pxr/usd/{sdf,usd,usdGeom,usdShade}`
+# (TOST-Apache-2.0). The Python bindings expose the same names.
+#
+# Rung 1 adds `UsdSkel*` for skinning + morphs; rung 2 covers layer
+# composition (references, payloads, variant sets) end to end.
+#
+# Format: `<Namespace>::<Class>.<method>(<args>) -> <return>`.
+# Static factories start with `<Class>::` (no receiver).
+
+# ---- stage lifecycle (top-level entry) ---------------------------
+
+UsdStage::CreateNew(filepath) -> UsdStagePtr
+UsdStage::CreateInMemory() -> UsdStagePtr
+UsdStage::Open(filepath) -> UsdStagePtr
+UsdStage.GetRootLayer() -> SdfLayerHandle
+UsdStage.GetPseudoRoot() -> UsdPrim
+UsdStage.DefinePrim(path, typeName) -> UsdPrim
+UsdStage.GetPrimAtPath(path) -> UsdPrim
+UsdStage.SetDefaultPrim(prim) -> void
+UsdStage.Save() -> void
+UsdStage.Export(filepath) -> bool
+UsdStage.GetTimeCodesPerSecond() -> double
+UsdStage.SetTimeCodesPerSecond(fps) -> void
+
+# ---- prim + attribute basics -------------------------------------
+
+UsdPrim.GetName() -> TfToken
+UsdPrim.GetPath() -> SdfPath
+UsdPrim.GetTypeName() -> TfToken
+UsdPrim.IsValid() -> bool
+UsdPrim.CreateAttribute(name, typeName, custom, variability) -> UsdAttribute
+UsdPrim.CreateRelationship(name, custom) -> UsdRelationship
+UsdPrim.GetChildren() -> UsdPrimSiblingRange
+UsdPrim.ApplyAPI(schemaType) -> bool
+
+UsdAttribute.Set(value, time) -> bool
+UsdAttribute.Get(value, time) -> bool
+UsdAttribute.GetTypeName() -> SdfValueTypeName
+UsdAttribute.HasValue() -> bool
+
+# ---- Sdf path / value types --------------------------------------
+
+SdfPath::SdfPath(pathString) -> SdfPath
+SdfPath.AppendChild(name) -> SdfPath
+SdfPath.AppendProperty(name) -> SdfPath
+SdfValueTypeNames::Bool                                             # every scalar type has a Sdf token
+SdfValueTypeNames::Int
+SdfValueTypeNames::Float
+SdfValueTypeNames::Double
+SdfValueTypeNames::String
+SdfValueTypeNames::Token
+SdfValueTypeNames::Asset
+SdfValueTypeNames::Float3
+SdfValueTypeNames::Point3f
+SdfValueTypeNames::Matrix4d
+
+# ---- geometry schema (UsdGeom) -----------------------------------
+
+UsdGeomXform::Define(stage, path) -> UsdGeomXform
+UsdGeomMesh::Define(stage, path) -> UsdGeomMesh
+UsdGeomMesh.CreatePointsAttr(default_) -> UsdAttribute
+UsdGeomMesh.CreateFaceVertexCountsAttr(default_) -> UsdAttribute
+UsdGeomMesh.CreateFaceVertexIndicesAttr(default_) -> UsdAttribute
+UsdGeomXformCommonAPI(prim).SetTranslate(vec, time) -> bool
+UsdGeomTokens::rightHanded
+
+# ---- shading (UsdShade) ------------------------------------------
+
+UsdShadeMaterial::Define(stage, path) -> UsdShadeMaterial
+UsdShadeShader::Define(stage, path) -> UsdShadeShader
+UsdShadeShader.CreateIdAttr(default_) -> UsdAttribute
+UsdShadeMaterial.CreateSurfaceOutput(renderContext) -> UsdShadeOutput
+
+# ---- composition arcs (needed by the RFD-2155 intermediate) ------
+
+UsdReferences.AddReference(assetPath, primPath) -> bool
+UsdReferences.AddInternalReference(primPath, layerOffset) -> bool
+UsdPayloads.AddPayload(assetPath, primPath) -> bool
+UsdVariantSets.AddVariantSet(name, position) -> UsdVariantSet
+UsdVariantSet.AddVariant(variantName, position) -> bool
+UsdVariantSet.SetVariantSelection(variantName) -> bool
+
+# ---- rule for the emitter ----------------------------------------
+# RFD 2155's plan is `/Plan/{Domain, Problem, Network, Deliveries,
+# Provenance}` prims. `UsdStage::CreateNew` opens the .usda, one
+# `DefinePrim` per subtree, each delivery format lives on an
+# attribute typed `SdfValueTypeNames::String` (FBD XML, gdscript,
+# uasm) or `Asset` (ELFs). `Save()` writes it out.

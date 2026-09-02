@@ -1,0 +1,80 @@
+# MuJoCo — DeepMind's physics simulator.
+#
+# Rung 0: the MJCF schema elements + `mjSpec` / `mj_step` API a rung-0
+# emitter reaches to compile a RECTGTN plan's physical scene into an
+# `mjModel` and step it. Source: google-deepmind/mujoco @ 3.2
+# `include/mujoco/mujoco.h` + MJCF reference (Apache-2.0).
+#
+# Rung 1 adds contact + constraint solvers, sensors, actuators;
+# rung 2 covers plugin registration + differentiable physics.
+#
+# Two surface halves: MJCF XML schema (data), and the C/Python API
+# (control). Both listed.
+
+# ==== MJCF XML schema (rung-0 elements) ===========================
+# Format: `<element>  <required-attrs>  # <notes>`
+
+<mujoco>                       model                                # root element
+  <compiler>                   angle, coordinate, meshdir            # global compile hints
+  <option>                     timestep, gravity, integrator         # solver settings
+  <default>                    class                                 # attribute inheritance
+  <asset>                                                             # meshes, textures, materials
+    <mesh>                     file, name
+    <texture>                  file, name, type
+    <material>                 name, texture, rgba
+  <worldbody>                                                         # scene root
+    <body>                     name, pos, quat, mocap
+      <geom>                   type, size, pos, rgba, mass
+      <joint>                  name, type, axis, range
+      <site>                   name, pos, size
+      <camera>                 name, mode, pos, fovy
+      <light>                  name, mode, pos, diffuse
+      <inertial>               pos, mass, diaginertia
+  <equality>                                                          # kinematic constraints
+    <connect>                  body1, body2, anchor
+    <weld>                     body1, body2
+  <tendon>
+    <spatial>                  name, width
+  <actuator>
+    <motor>                    name, joint, gear
+    <position>                 name, joint, kp
+    <velocity>                 name, joint, kv
+  <sensor>
+    <accelerometer>            name, site
+    <gyro>                     name, site
+  <keyframe>
+    <key>                      name, qpos, qvel, time
+
+# ==== Python / C API (rung 0) =====================================
+# Format: `<module>.<function>(<args>) -> <return>`.
+
+mujoco.MjSpec()                                          -> MjSpec         # in-memory MJCF builder
+MjSpec.from_file(filename)                               -> MjSpec         # parse .xml
+MjSpec.to_xml()                                          -> str
+MjSpec.compile()                                         -> MjModel        # bake to runtime form
+MjSpec.worldbody                                          # <worldbody> handle
+MjSpec.add_body(parent, name, pos, quat)                 -> MjSpecBody
+MjSpecBody.add_geom(type, size, rgba, mass)              -> MjSpecGeom
+MjSpecBody.add_joint(type, axis, range)                  -> MjSpecJoint
+
+mujoco.MjModel.from_xml_path(filepath)                   -> MjModel
+mujoco.MjModel.from_xml_string(xml)                      -> MjModel
+mujoco.MjData(model)                                     -> MjData
+
+mujoco.mj_step(model, data)                              -> void          # one time-integration step
+mujoco.mj_forward(model, data)                           -> void          # kinematics without integration
+mujoco.mj_resetData(model, data)                         -> void
+mujoco.mj_saveKeyframe(model, data, key)                 -> void
+
+MjData.qpos                    # generalised positions
+MjData.qvel                    # generalised velocities
+MjData.ctrl                    # actuator inputs (rung-0 write target)
+MjData.time                    # sim time
+MjData.sensordata              # sensor readouts
+
+# ---- rule for the emitter ---------------------------------------
+# One `<body>` per RECTGTN articulator, one `<actuator><position>`
+# per movable joint. Rung-0 MOVE writes `data.ctrl[i] = target`
+# and TON gates it on a preset elapsed at `data.time` intervals.
+# `mj_step` runs at `option.timestep`; RFD 2149's tick lands on
+# each `mj_step` return.

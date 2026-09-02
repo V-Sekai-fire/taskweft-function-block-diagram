@@ -1,0 +1,79 @@
+# Mitsuba 3 — the differentiable path-tracing renderer.
+#
+# Rung 0: the scene-XML plugin surface + Python API a rung-0 emitter
+# reaches to render a RECTGTN plan's visual deliverable and (in the
+# MASKSCORE loop) differentiate a loss through it. Source:
+# mitsuba-renderer/mitsuba3 @ 3.5 `docs/src/generated/plugins/*` and
+# `mitsuba/python/__init__.py` (BSD-3).
+#
+# Rung 1 adds `mi.traverse` for parameter walking, `mi.ad.wrap_ad`
+# for gradient plumbing, `dr.grad` accumulation; rung 2 covers custom
+# BSDFs, media, phase functions.
+#
+# Two surface halves: scene XML (plugin registry), and the Python /
+# Dr.Jit runtime API (rendering + differentiation). Both listed.
+
+# ==== Scene XML plugins (rung 0) =================================
+# Format: `<plugin type="name">  <required-params>  # <notes>`
+
+<scene version="3.0.0">                                             # root
+  <integrator type="path">        max_depth, hide_emitters           # unbiased path tracer
+  <integrator type="prb">         max_depth                          # path-replay backpropagation (AD)
+  <integrator type="direct">      shading_samples                    # 1-bounce reference
+
+  <sensor type="perspective">     fov, near_clip, far_clip           # rung-0 camera
+    <transform name="to_world">   translate, look_at                 # camera pose
+    <sampler type="independent">  sample_count                       # anti-alias
+    <film type="hdrfilm">         width, height, pixel_format        # output plate
+
+  <shape type="obj">              filename                            # geometry primitive
+    <transform name="to_world">   translate, rotate, scale
+    <bsdf type="diffuse">         reflectance                        # rung-0 material
+    <bsdf type="dielectric">      int_ior, ext_ior
+    <bsdf type="conductor">       specular_reflectance
+    <bsdf type="roughconductor">  alpha, distribution
+    <emitter type="area">         radiance                            # area light on a shape
+
+  <shape type="rectangle">                                            # implicit rect
+  <shape type="sphere">           radius, center
+
+  <emitter type="constant">       radiance                            # ambient
+  <emitter type="envmap">         filename                            # HDR environment
+
+  <texture type="bitmap">         filename, filter_type
+  <texture type="checkerboard">   color0, color1
+
+# ==== Python API (rung 0) ========================================
+# Format: `<module>.<function>(<args>) -> <return>`.
+
+mitsuba.set_variant(name)                            -> None    # e.g. 'cuda_ad_rgb', 'llvm_ad_rgb'
+mitsuba.load_file(filename)                          -> Scene
+mitsuba.load_string(xml)                             -> Scene
+mitsuba.load_dict(dict)                              -> Scene   # in-Python scene authoring
+
+Scene.integrator()                                   -> Integrator
+Scene.sensors()                                      -> list[Sensor]
+Scene.emitters()                                     -> list[Emitter]
+Scene.shapes()                                       -> list[Shape]
+
+mitsuba.render(scene, params, sensor, spp, seed)     -> TensorXf  # HDR render
+mitsuba.Bitmap(tensor)                               -> Bitmap
+Bitmap.write(filename)                               -> None
+
+# ---- differentiable half (Dr.Jit) --------------------------------
+
+mitsuba.traverse(scene)                              -> SceneParameters   # walk of tunable params
+SceneParameters.__setitem__(key, value)              -> None              # in-place param edit
+SceneParameters.update()                             -> None              # commit + rebuild BVH if needed
+drjit.grad_enabled(x)                                -> bool
+drjit.enable_grad(x)                                 -> None
+drjit.backward(loss)                                 -> None              # backprop through render
+drjit.grad(x)                                        -> TensorXf          # accumulated gradient
+
+# ---- rule for the emitter ---------------------------------------
+# A RECTGTN plan's visual deliverable becomes one `mi.load_dict` per
+# scene state; the FBD scan cycle stops at a `mi.render(scene, spp=N)`
+# per step. MASKSCORE differentiability comes from choosing the `prb`
+# integrator + `cuda_ad_rgb` variant and reading `dr.grad(image)`.
+# Rung-0 renders only; the gradient half is rung 1 and lands with
+# the MASKSCORE loop RFD.

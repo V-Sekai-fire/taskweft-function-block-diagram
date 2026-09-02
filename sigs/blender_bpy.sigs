@@ -1,0 +1,86 @@
+# Blender Python API (`bpy`) — the modelling and asset-authoring surface.
+#
+# Rung 0: the 40 entry points a rung-0 emitter reaches to author a
+# RECTGTN plan's Deliveries into a `.blend` file (asset export step
+# only, not runtime — Blender is CLAUDE.md-blocklisted as a *renderer*
+# for reproducibility reasons, but the authoring API is fine).
+# Source: blender.org bpy API reference @ Blender 4.2 LTS (GPL-2.0).
+#
+# Rung 1 adds `bpy.ops.mesh.*` primitive builders and `bmesh` low-level
+# edit; rung 2 covers the shader-node graph and the animation NLA.
+#
+# Format: `<module>.<member>(<args>) -> <return>`. Data collections
+# expose `<Collection>.new(name)` / `<Collection>[key]` — listed as
+# `<Collection>[]` and `<Collection>.new(...)`.
+
+# ---- global entry ------------------------------------------------
+
+bpy.context: Context                                             # active scene / selection
+bpy.data: BlendData                                              # every datablock in the file
+
+# ---- datablock collections ---------------------------------------
+
+BlendData.scenes: Scenes                                         # BlendData.scenes.new / [name]
+BlendData.objects: Objects
+BlendData.meshes: Meshes
+BlendData.materials: Materials
+BlendData.armatures: Armatures
+BlendData.actions: Actions
+BlendData.collections: Collections
+BlendData.libraries: Libraries
+
+# ---- object model ------------------------------------------------
+
+Object.name: str
+Object.location: Vector                                          # world (x, y, z)
+Object.rotation_euler: Euler
+Object.rotation_quaternion: Quaternion
+Object.scale: Vector
+Object.matrix_world: Matrix
+Object.data: ID                                                  # underlying datablock
+Object.parent: Object
+Object.constraints: ObjectConstraints                            # blocklisted for glTF exports (CLAUDE.md)
+Object.modifiers: ObjectModifiers                                # blocklisted for glTF exports
+
+# ---- meshes ------------------------------------------------------
+
+Mesh.vertices: MeshVertices
+Mesh.polygons: MeshPolygons
+Mesh.uv_layers: UVLoopLayers
+Mesh.materials: IDMaterials
+
+# ---- scenes + collections ----------------------------------------
+
+Scene.collection: Collection                                     # scene root
+Collection.objects: CollectionObjects
+Collection.children: CollectionChildren
+
+# ---- operators (the ones an FBD-to-blend emitter actually uses) --
+
+bpy.ops.wm.read_homefile(load_ui) -> None
+bpy.ops.wm.save_as_mainfile(filepath, check_existing, compress) -> None
+bpy.ops.wm.open_mainfile(filepath) -> None
+bpy.ops.object.select_all(action) -> None
+bpy.ops.object.delete(use_global) -> None
+bpy.ops.object.parent_set(type, keep_transform) -> None
+bpy.ops.export_scene.gltf(filepath, export_format, export_animations) -> None    # deliverable exit
+bpy.ops.wm.usd_export(filepath, selected_objects_only, root_prim_path) -> None   # RFD 2155 exit
+
+# ---- armatures + animation ---------------------------------------
+
+Armature.bones: ArmatureBones
+Action.fcurves: ActionFCurves
+FCurve.keyframe_points: FCurveKeyframePoints
+
+# ---- materials (data-only; nodes are rung 2) ---------------------
+
+Material.name: str
+Material.use_nodes: bool
+Material.node_tree: ShaderNodeTree
+
+# ---- rule for the emitter ----------------------------------------
+# Runs headless: `blender -b -P emit.py`. Import the plan's USD via
+# `bpy.ops.wm.usd_import`, decorate userData onto each `Object.name`,
+# export the deliverable via `bpy.ops.export_scene.gltf` with pure-
+# data settings (skin + morphs, no constraints/modifiers/drivers) so
+# the export matches CLAUDE.md's "pure data only" glTF rule.

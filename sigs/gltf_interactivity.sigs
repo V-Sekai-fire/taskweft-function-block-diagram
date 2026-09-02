@@ -1,0 +1,67 @@
+# glTF KHR_interactivity node graph — the portable interactivity extension.
+#
+# Rung 0: the 30 node types a rung-0 FBD emitter reaches to lower an
+# SR_L / AND / MOVE / TON network into KHR_interactivity JSON that
+# any conformant runtime executes. Source of truth:
+# KhronosGroup/glTF `extensions/2.0/Khronos/KHR_interactivity` @ the
+# 1.0 spec (Khronos public spec, Aug 2026).
+#
+# Rung 1 adds `math/*` transcendentals and vector ops; rung 2 covers
+# the full node vocabulary + user-declared events.
+#
+# Format: `<op>  <in-sockets> -> <out-sockets>  # <notes>`. Socket
+# types match the spec's type registry (`bool`, `int`, `float`,
+# `float2`..`float4`, `float4x4`, `custom`).
+
+# ---- lifecycle events (graph entry points) ------------------------
+
+event/onStart                             -> ()                              # world load
+event/onTick                              -> (timeSinceStart:float, deltaTime:float)
+event/receive                             -> (arguments:custom)              # named external send
+event/send                                (eventName:string, arguments:custom) -> ()
+
+# ---- control flow (map to GRAFCET step + transition wiring) -------
+
+flow/sequence                             (in:flow) -> (out_0:flow, out_1:flow, out_2:flow)
+flow/branch                               (condition:bool, in:flow) -> (true:flow, false:flow)
+flow/switch                               (selection:int, in:flow) -> (case_0:flow, case_1:flow, default:flow)
+flow/for                                  (startIndex:int, endIndex:int, in:flow) -> (loopBody:flow, completed:flow, index:int)
+flow/while                                (condition:bool, in:flow) -> (loopBody:flow, completed:flow)
+flow/setDelay                             (duration:float, in:flow) -> (done:flow, cancelled:flow, lastDelayIndex:int)
+flow/cancelDelay                          (delayIndex:int, in:flow) -> (out:flow)
+flow/waitAll                              (inputFlows:flow[]) -> (out:flow)
+
+# ---- booleans + comparisons (rung-0 AND / OR / NOT / EQ / LT) -----
+
+math/and                                  (a:bool, b:bool) -> (value:bool)
+math/or                                   (a:bool, b:bool) -> (value:bool)
+math/not                                  (a:bool) -> (value:bool)
+math/eq                                   (a:T, b:T) -> (value:bool)
+math/lt                                   (a:T, b:T) -> (value:bool)
+math/le                                   (a:T, b:T) -> (value:bool)
+
+# ---- arithmetic (rung-0 ADD / SUB / MUL / DIV) --------------------
+
+math/add                                  (a:T, b:T) -> (value:T)
+math/sub                                  (a:T, b:T) -> (value:T)
+math/mul                                  (a:T, b:T) -> (value:T)
+math/div                                  (a:T, b:T) -> (value:T)
+math/mod                                  (a:T, b:T) -> (value:T)
+math/select                               (condition:bool, a:T, b:T) -> (value:T)      # MUX
+
+# ---- variables (map to FBD symbol table) --------------------------
+
+variable/get                              () -> (value:T)                              # references graph.variables[i]
+variable/set                              (value:T, in:flow) -> (out:flow)
+
+# ---- pointers into the glTF scene (the node's "MOVE" targets) -----
+
+pointer/get                               (pointer:string) -> (value:T)                # JSON pointer into the doc
+pointer/set                               (pointer:string, value:T, in:flow) -> (out:flow)
+pointer/interpolate                       (pointer:string, value:T, duration:float, in:flow) -> (done:flow, cancelled:flow)
+
+# ---- rule for the emitter -----------------------------------------
+# The FBD lowering pattern: one `variable/get` + `variable/set` per
+# SR_L bit, one `math/and` per AND block, one `pointer/interpolate`
+# per MOVE with a time constant lifted into TON. TON itself becomes
+# `flow/setDelay` with the timer preset as the `duration` input.

@@ -1,0 +1,75 @@
+# Resonite ProtoFlux — the in-world node-graph runtime.
+#
+# Rung 0: the ~40 node types a rung-0 FBD emitter reaches to lower a
+# RECTGTN plan into a ProtoFlux graph a Resonite session executes.
+# Source of truth: `wiki.resonite.com` ProtoFlux node reference
+# (CC-BY-4.0, retrieved Aug 2026); node fully-qualified names taken
+# from Resonite's own `FrooxEngine.ProtoFlux.*` C# assembly namespaces
+# as documented publicly.
+#
+# ProtoFlux distinguishes IMPULSE (flow) sockets and VALUE sockets, same
+# as KHR_interactivity. A `*` socket means variadic.
+#
+# Format: `<Namespace>/<Node>  <impulse-in> // <value-in> -> <impulse-out> // <value-out>`
+
+# ---- lifecycle (graph entry points) ------------------------------
+
+Runtime/OnStart                                    _  //  _  -> Fire  //  _
+Runtime/Update                                     _  //  _  -> Fire  //  DeltaSeconds
+Runtime/UpdateWithDelta                            _  //  _  -> Fire  //  Delta
+Runtime/DynamicImpulseReceiver                     _  //  Tag  -> Fire  //  Data
+Runtime/DynamicImpulseTrigger                      Trigger  //  Tag, Data  -> OnDone  //  _
+
+# ---- flow control (GRAFCET step + transition mapping) ------------
+
+Flow/Sequence                                      In  //  _  -> Then0, Then1, Then2  //  _
+Flow/If                                            In  //  Condition  -> True, False  //  _
+Flow/While                                         In  //  Condition  -> LoopIteration, Done  //  _
+Flow/For                                           In  //  Start, End, Step  -> LoopIteration, Done  //  CurrentIndex
+Flow/PulseDelay                                    In  //  Delay  -> DelayedPulse  //  _
+Flow/OneShot                                       In  //  _  -> OnFirst, OnLater  //  _
+
+# ---- booleans + comparisons --------------------------------------
+
+Bool/AND_Bool                                      _  //  A, B  -> _  //  *
+Bool/OR_Bool                                       _  //  A, B  -> _  //  *
+Bool/NOT_Bool                                      _  //  A  -> _  //  *
+Bool/XOR_Bool                                      _  //  A, B  -> _  //  *
+Math/Equals_T                                      _  //  A, B  -> _  //  *
+Math/LessThan_T                                    _  //  A, B  -> _  //  *
+Math/LessOrEqual_T                                 _  //  A, B  -> _  //  *
+
+# ---- arithmetic --------------------------------------------------
+
+Math/ValueAdd_T                                    _  //  A, B  -> _  //  *
+Math/ValueSub_T                                    _  //  A, B  -> _  //  *
+Math/ValueMul_T                                    _  //  A, B  -> _  //  *
+Math/ValueDiv_T                                    _  //  A, B  -> _  //  *
+Math/Sin_Float                                     _  //  N  -> _  //  *
+Math/Cos_Float                                     _  //  N  -> _  //  *
+Math/Clamp_T                                       _  //  Value, Min, Max  -> _  //  *
+Math/Lerp_T                                        _  //  A, B, Alpha  -> _  //  *
+
+# ---- variables + fields on scene slots ---------------------------
+
+References/ValueRead_T                             _  //  Source  -> _  //  *
+References/ValueWrite_T                            Write  //  Target, Value  -> OnDone  //  _
+Slots/GetPosition                                  _  //  Slot  -> _  //  Position
+Slots/SetPosition                                  Write  //  Slot, Position  -> OnDone  //  _
+Slots/GetRotation                                  _  //  Slot  -> _  //  Rotation
+Slots/SetRotation                                  Write  //  Slot, Rotation  -> OnDone  //  _
+Slots/GetActive_Self                               _  //  Slot  -> _  //  Active
+Slots/SetActive_Self                               Write  //  Slot, Active  -> OnDone  //  _
+
+# ---- users + networking ------------------------------------------
+
+Users/LocalUser                                    _  //  _  -> _  //  User
+Users/AllUsers                                     _  //  _  -> _  //  Users
+Users/IsUserPresent                                _  //  User  -> _  //  Present
+
+# ---- rule for the emitter ----------------------------------------
+# SR_L -> References/ValueWrite_Bool driven by an OR of Set / Clear
+# `PulseDelay` impulses. AND / OR / NOT compose Bool nodes directly.
+# TON lowers to `Flow/PulseDelay` with the preset as `Delay`. MOVE
+# becomes `Slots/SetPosition` or `References/ValueWrite_T` depending
+# on the destination type. Nothing else lowers cleanly at rung 0.
