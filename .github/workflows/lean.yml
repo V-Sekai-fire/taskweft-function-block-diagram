@@ -51,6 +51,22 @@ jobs:
           if "$B" plan fixtures/unwired_pin.fbd; then echo "the unwired pin lowered; the lowering is decoration"; exit 1; fi
           if "$B" check fixtures/unknown_block.fbd; then echo "the unknown block parsed; the text reader is decoration"; exit 1; fi
           if "$B" check fixtures/unknown_kind.sgd; then echo "the unknown kind lifted; the lift is decoration"; exit 1; fi
+      - name: A CALL block is checked against the signature tables, lowers to a call step, and lifts back
+        run: |
+          B=./.lake/build/bin/taskweft_fbd_compiler
+          "$B" sigs | grep -q "godot_engine_single.sigs: 60"
+          "$B" sigs | grep -q "mjlab_trainer.sigs: 38"
+          "$B" sigs Node3D.get_position | grep -q -- "-> Vector3"
+          "$B" check fixtures/api/move_body.fbd
+          "$B" plan fixtures/api/move_body.fbd | grep -q '"command": "Node3D.set_position"'
+          "$B" plan fixtures/api/move_body.fbd | grep -q '"path": "#3.RET"'
+          "$B" emit fixtures/api/move_body.fbd /tmp/move_body.sgd
+          diff /tmp/move_body.sgd fixtures/api/move_body.sgd
+          "$B" to-dsl fixtures/api/move_body.sgd | diff - fixtures/api/move_body.fbd
+          "$B" to-xml fixtures/api/move_body.fbd | diff - fixtures/api/move_body.plcopen.xml
+          "$B" to-dsl fixtures/api/move_body.plcopen.xml | diff - fixtures/api/move_body.fbd
+          if "$B" plan fixtures/api/unknown_sig.fbd; then echo "the unknown signature lowered; the table check is decoration"; exit 1; fi
+          if "$B" plan fixtures/api/missing_arg.fbd; then echo "the missing argument lowered; the table check is decoration"; exit 1; fi
       - name: The scan controller agrees across its three forms and simulates the same from each
         run: |
           B=./.lake/build/bin/taskweft_fbd_compiler

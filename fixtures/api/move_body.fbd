@@ -1,0 +1,6 @@
+program move_body
+var done : BOOL
+b3 = CALL[Node.get_node](TARGET="/root/Fixture", path="Body")
+b5 = CALL[Node3D.set_position](EN=b3.ENO, TARGET=b3.RET, position="Vector3(1, 0, 2)")
+b6 = CALL[Node3D.get_position](EN=b5.ENO, TARGET=b3.RET)
+done = b6.ENO

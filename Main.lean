@@ -29,6 +29,7 @@ import TaskweftFbdCompiler.Netlist
 import TaskweftFbdCompiler.Semantics
 import TaskweftFbdCompiler.Scan
 import TaskweftFbdCompiler.Gen
+import TaskweftFbdCompiler.Sigs
 import TaskweftFbdCompiler.Elf
 
 open TaskweftFbdCompiler
@@ -44,17 +45,19 @@ private def refuse (msg : String) : IO UInt32 := do
 
 private def loadPou (path : String) : IO (Except String POU) := do
   let text ← IO.FS.readFile path
+  let tables ← Sigs.loadAll
   let ext := (path.splitOn ".").getLast!.toLower
   pure <| match ext with
     | "fbd" => Dsl.parse text
-    | "sgd" | "gd" => (Lift.lift text).map (·.pou)
+    | "sgd" | "gd" => (Lift.lift text tables).map (·.pou)
     | _ => Parser.parsePou text
 
 private def lowered (path : String) : IO (Except String (POU × Sgd.Lowered)) := do
   match ← loadPou path with
   | .error e => pure (.error e)
   | .ok pou =>
-    match Sgd.lower pou with
+    let tables ← Sigs.loadAll
+    match Sgd.lower pou tables with
     | .error e => pure (.error e)
     | .ok l => pure (.ok (pou, l))
 
@@ -129,6 +132,17 @@ def main (argv : List String) : IO UInt32 := do
         IO.FS.writeFile out text
         IO.println s!"scan controller {pou.name} to {out}"
         pure 0
+  | ["sigs"] =>
+    let tables ← Sigs.loadAll
+    if tables.isEmpty then refuse "no signature tables found (TASKWEFT_SIGS_DIR or ./sigs)" else
+    for t in tables do
+      IO.println s!"{t.path}: {t.sigs.length} signature(s)"
+    pure 0
+  | ["sigs", key] =>
+    let tables ← Sigs.loadAll
+    match Sigs.find? tables key with
+    | some s => IO.println s!"{s.key}({", ".intercalate (s.args.map fun (n, t) => match t with | some ty => s!"{n}: {ty}" | none => n)}) -> {s.ret.getD "void"}"; pure 0
+    | none => refuse s!"signature '{key}' is in no table"
   | ["gen-scan", dir] =>
     let (h, t) ← Gen.write dir
     IO.println s!"wrote {h} harness controller(s) and {t} trace(s) to {dir}"
@@ -136,4 +150,4 @@ def main (argv : List String) : IO UInt32 := do
   | ["to-dsl", path] => printed path Dsl.print
   | ["to-xml", path] => printed path Xml.print
   | _ =>
-    refuse "usage: taskweft_fbd_compiler [check <diagram> | plan <diagram> | emit <diagram> <out.sgd> | to-dsl <diagram> | to-xml <diagram> | net <diagram> | sim <diagram> <trace.json> | emit-scan <diagram> <out.sgd> | gen-scan <dir>]"
+    refuse "usage: taskweft_fbd_compiler [check <diagram> | plan <diagram> | emit <diagram> <out.sgd> | to-dsl <diagram> | to-xml <diagram> | net <diagram> | sim <diagram> <trace.json> | emit-scan <diagram> <out.sgd> | gen-scan <dir> | sigs [<Class.method>]]"

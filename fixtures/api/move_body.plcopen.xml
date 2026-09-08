@@ -1,0 +1,43 @@
+<pou name="move_body" pouType="program">
+  <interface>
+    <localVars>
+      <variable name="done"><type><BOOL/></type></variable>
+    </localVars>
+  </interface>
+  <body>
+    <FBD>
+      <inVariable localId="1"><expression>'/root/Fixture'</expression></inVariable>
+      <inVariable localId="2"><expression>'Body'</expression></inVariable>
+      <block localId="3" typeName="CALL" instanceName="Node.get_node">
+        <inputVariables>
+          <variable formalParameter="TARGET"><connectionPointIn><connection refLocalId="1" formalParameter="OUT"/></connectionPointIn></variable>
+          <variable formalParameter="path"><connectionPointIn><connection refLocalId="2" formalParameter="OUT"/></connectionPointIn></variable>
+        </inputVariables>
+        <outputVariables>
+          <variable formalParameter="ENO"/>
+        </outputVariables>
+      </block>
+      <inVariable localId="4"><expression>'Vector3(1, 0, 2)'</expression></inVariable>
+      <block localId="5" typeName="CALL" instanceName="Node3D.set_position">
+        <inputVariables>
+          <variable formalParameter="EN"><connectionPointIn><connection refLocalId="3" formalParameter="ENO"/></connectionPointIn></variable>
+          <variable formalParameter="TARGET"><connectionPointIn><connection refLocalId="3" formalParameter="RET"/></connectionPointIn></variable>
+          <variable formalParameter="position"><connectionPointIn><connection refLocalId="4" formalParameter="OUT"/></connectionPointIn></variable>
+        </inputVariables>
+        <outputVariables>
+          <variable formalParameter="ENO"/>
+        </outputVariables>
+      </block>
+      <block localId="6" typeName="CALL" instanceName="Node3D.get_position">
+        <inputVariables>
+          <variable formalParameter="EN"><connectionPointIn><connection refLocalId="5" formalParameter="ENO"/></connectionPointIn></variable>
+          <variable formalParameter="TARGET"><connectionPointIn><connection refLocalId="3" formalParameter="RET"/></connectionPointIn></variable>
+        </inputVariables>
+        <outputVariables>
+          <variable formalParameter="ENO"/>
+        </outputVariables>
+      </block>
+      <outVariable localId="7"><connectionPointIn><connection refLocalId="6" formalParameter="ENO"/></connectionPointIn><expression>done</expression></outVariable>
+    </FBD>
+  </body>
+</pou>

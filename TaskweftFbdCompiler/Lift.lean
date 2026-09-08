@@ -14,6 +14,7 @@ import TaskweftFbdCompiler.Parser
 import TaskweftFbdCompiler.Dsl
 import TaskweftFbdCompiler.Netlist
 import TaskweftFbdCompiler.Scan
+import TaskweftFbdCompiler.Sigs
 
 namespace TaskweftFbdCompiler.Lift
 open TaskweftFbdCompiler
@@ -206,7 +207,8 @@ private def liftReact (name : String) (steps : List React) : Except String (List
   pure stmts
 
 /-- Lift a steps guest. -/
-def liftSteps (lines : List String) : Except String Lifted := do
+def liftSteps (lines : List String) (tables : List Sigs.Table) : Except String Lifted := do
+  let mut stepIds : List (Nat × Nat) := []
   let name := (lines.findSome? (after · "# SafeGDScript, compiled by taskweft-fbd-compiler from POU ")).getD "lifted"
   let skippedNames := match lines.findSome? (after · "# not lowered in stage 1: ") with
     | some s => (s.splitOn ",").map trim |>.filter (· != "")
@@ -244,19 +246,52 @@ def liftSteps (lines : List String) : Except String Lifted := do
       | some p => [("EN", .fromBlock p "ENO")]
       | none => []
     let mut lits : List (String × String) := []
+    let mut inst : Option String := none
+    let mut refs : List (String × Nat) := []
     let block ← match kind with
       | "write" => do lits := [("PATH", ← str j "path"), ("TEXT", ← str j "content")]; pure Block.os_write
       | "read" => do lits := [("PATH", ← str j "path")]; pure Block.os_read
       | "terminal" => do
         lits := [("CMD", ← str j "command"), ("ARGS", " ".intercalate (← strs j "args"))]
         pure Block.os_run
+      | "call" => do
+        let key ← str j "command"
+        inst := some key
+        let target ← str j "path"
+        -- argument names come from the table; the guest carries values in signature order
+        let some sig := Sigs.find? tables key
+          | throw s!"step {count}: CALL signature '{key}' is in no table under sigs/"
+        let names : List String := sig.args.map (fun (a : String × Option String) => a.1)
+        let vals ← strs j "args"
+        if vals.length != names.length then throw s!"step {count}: CALL {key} carries {vals.length} argument(s), the table names {names.length}"
+        let pairs := (if target.isEmpty then [] else [("TARGET", target)]) ++ names.zip vals
+        for (n, v) in pairs do
+          if v.startsWith "#" && v.endsWith ".RET" then
+            match ((v.drop 1).toString.splitOn ".").headD "" |>.toNat? with
+            | some id =>
+              match stepIds.lookup id with
+              | some lid => refs := refs ++ [(n, lid)]
+              | none => throw s!"step {count}: CALL {key} reads RET of step {id}, which is not an earlier CALL"
+            | none => throw s!"step {count}: bad reference {v}"
+          else lits := lits ++ [(n, v)]
+        pure Block.call_
       | other => throw s!"step {count}: kind '{other}' is not one the FBD subset lowers to"
     for (pin, v) in lits do
       if forbidden v then throw s!"step {count}: literal carries a character the PLCopen STRING form forbids: {v}"
       inputs := inputs ++ [(next, "'" ++ v ++ "'")]
       wires := wires ++ [(pin, .fromBlock next "OUT")]
       next := next + 1
-    blocks := blocks ++ [{ localId := next, block, wires }]
+    for (pin, lid) in refs do
+      wires := wires ++ [(pin, .fromBlock lid "RET")]
+    if block == .call_ then
+      -- the text form writes EN, then TARGET, then the arguments in table order
+      wires := wires.filter (·.1 == "EN") ++ wires.filter (·.1 == "TARGET") ++ wires.filter (fun w => w.1 != "EN" && w.1 != "TARGET")
+    blocks := blocks ++ [{ localId := next, block, inst, wires }]
+    -- a CALL's RET is addressed by the source block's id (`action: CALL#<id>`) in the guest
+    let idx := match j.getObjVal? "action" with
+      | .ok (.str a) => (((a.splitOn "#").getLastD "").toNat?).getD count
+      | _ => count
+    stepIds := stepIds ++ [(idx, next)]
     prev := some next
     next := next + 1
     count := count + 1
@@ -274,7 +309,7 @@ def liftSteps (lines : List String) : Except String Lifted := do
          steps := count, skipped }
 
 /-- Lift the guest program's text. -/
-def lift (text : String) : Except String Lifted := do
+def lift (text : String) (tables : List Sigs.Table := []) : Except String Lifted := do
   let lines := (text.splitOn "\n").map fun l => trim ((l.splitOn "\r").headD "")
   match netBlock lines with
   | some netText =>
@@ -292,6 +327,6 @@ def lift (text : String) : Except String Lifted := do
     if expected.length != given.length then
       throw s!"tick body differs from NET: the guest has {given.length} line(s), the emit from NET {expected.length}"
     return { pou, steps := 0, skipped := 0, mode := "scan" }
-  | none => liftSteps lines
+  | none => liftSteps lines tables
 
 end TaskweftFbdCompiler.Lift

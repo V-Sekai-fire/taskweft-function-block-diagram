@@ -26,6 +26,7 @@ def blockOfTypeName (s : String) : Option Block :=
   | "WRITE_FILE" => some .os_write
   | "RUN"        => some .os_run
   | "READ_FILE"  => some .os_read
+  | "CALL"       => some .call_
   | "SR_L"    => some .sr_l
   | "RS"      => some .rs
   | "SR"      => some .sr
