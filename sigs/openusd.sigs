@@ -14,6 +14,9 @@
 
 # ---- stage lifecycle (top-level entry) ---------------------------
 
+#
+# index-only: the C++ half spells a method `Class::method` and a CALL key is dotted; the Python half parses
+
 UsdStage::CreateNew(filepath) -> UsdStagePtr
 UsdStage::CreateInMemory() -> UsdStagePtr
 UsdStage::Open(filepath) -> UsdStagePtr

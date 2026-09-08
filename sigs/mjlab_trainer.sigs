@@ -13,6 +13,12 @@
 
 # ---- reward terms -------------------------------------------------------
 
+#
+# What the corpus deliberately leaves uncovered, and why. `export-tables`
+# reads these, so a census counts them as declared rather than as a gap.
+# uncovered: Actuator.bam -- no BAM actuator class in the mjlab environment yet
+# uncovered: Actuator.backlash -- no backlash actuator class in the mjlab environment yet
+
 Reward.track_linear_velocity(weight: REAL, std: REAL) -> Term
 Reward.track_angular_velocity(weight: REAL, std: REAL) -> Term
 Reward.upright(weight: REAL, std: REAL) -> Term

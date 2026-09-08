@@ -16,6 +16,9 @@
 # ==== Scene XML plugins (rung 0) =================================
 # Format: `<plugin type="name">  <required-params>  # <notes>`
 
+#
+# index-only: the scene-XML half is plugin elements and their parameters; the Python API half parses
+
 <scene version="3.0.0">                                             # root
   <integrator type="path">        max_depth, hide_emitters           # unbiased path tracer
   <integrator type="prb">         max_depth                          # path-replay backpropagation (AD)

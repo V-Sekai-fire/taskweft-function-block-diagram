@@ -18,6 +18,9 @@
 
 # ---- Section markers ------------------------------------------
 
+#
+# index-only: opcodes and assembler directives, not callable signatures
+
 .data_start                              # begins the data (symbol) section
 .data_end                                # ends the data section
 .code_start                              # begins the code section

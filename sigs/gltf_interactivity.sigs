@@ -15,6 +15,9 @@
 
 # ---- lifecycle events (graph entry points) ------------------------
 
+#
+# index-only: the glTF interactivity index is `op  in-sockets -> out-sockets`, not a dotted key; no CALL block names it
+
 event/onStart                             -> ()                              # world load
 event/onTick                              -> (timeSinceStart:float, deltaTime:float)
 event/receive                             -> (arguments:custom)              # named external send

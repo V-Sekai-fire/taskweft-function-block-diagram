@@ -51,6 +51,43 @@ jobs:
           if "$B" plan fixtures/unwired_pin.fbd; then echo "the unwired pin lowered; the lowering is decoration"; exit 1; fi
           if "$B" check fixtures/unknown_block.fbd; then echo "the unknown block parsed; the text reader is decoration"; exit 1; fi
           if "$B" check fixtures/unknown_kind.sgd; then echo "the unknown kind lifted; the lift is decoration"; exit 1; fi
+      - name: The tables export their counts, name what they leave uncovered, and refuse a line that does not parse
+        run: |
+          B=./.lake/build/bin/taskweft_fbd_compiler
+          mkdir -p /tmp/tbl
+          cp sigs/godot_engine_single.sigs sigs/mjlab_trainer.sigs /tmp/tbl/
+          "$B" --sigs /tmp/tbl export-tables > /tmp/tables.json
+          grep -q '"count": 60' /tmp/tables.json
+          grep -q '"count": 38' /tmp/tables.json
+          grep -q '"total": 98' /tmp/tables.json
+          grep -q '"name": "Object.connect"' /tmp/tables.json
+          grep -q '"name": "Actuator.bam"' /tmp/tables.json
+          grep -q '"duplicates": \[\]' /tmp/tables.json
+          # the control: a line that is neither blank, a comment, an uncovered
+          # declaration nor a signature is named with its file and its line
+          printf 'Class.method(a) -> B
+this line is not a signature
+' > /tmp/tbl/planted.sigs
+          if "$B" --sigs /tmp/tbl export-tables > /dev/null 2>/tmp/err; then
+            echo "the planted line exported; export-tables is decoration"; exit 1
+          fi
+          grep -q "planted.sigs:2" /tmp/err
+          rm /tmp/tbl/planted.sigs
+          # the second control: the same key in two tables is reported
+          printf 'Node3D.get_position(TARGET) -> Vector3
+' > /tmp/tbl/dupe.sigs
+          "$B" --sigs /tmp/tbl export-tables | grep -q '"Node3D.get_position"'
+          rm /tmp/tbl/dupe.sigs
+          # --sigs wins over the environment, and points at a directory of its own
+          TASKWEFT_SIGS_DIR=sigs "$B" --sigs /tmp/tbl export-tables | grep -q '"total": 98'
+          # the flag reaches a check, and its control: a directory holding no
+          # tables refuses the CALL the full set accepts
+          "$B" --sigs sigs check fixtures/api/move_body.fbd
+          if "$B" --sigs fixtures check fixtures/api/move_body.fbd; then
+            echo "a table-less directory accepted the CALL; the flag is decoration"; exit 1
+          fi
+          # every table under sigs/ either parses or says once that it is an index
+          "$B" --sigs sigs export-tables | grep -q '"total": 313'
       - name: A CALL block is checked against the signature tables, lowers to a call step, and lifts back
         run: |
           B=./.lake/build/bin/taskweft_fbd_compiler

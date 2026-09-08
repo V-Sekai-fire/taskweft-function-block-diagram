@@ -14,6 +14,9 @@
 # ==== MJCF XML schema (rung-0 elements) ===========================
 # Format: `<element>  <required-attrs>  # <notes>`
 
+#
+# index-only: the MJCF schema half is XML element and attribute names; the API half below it parses
+
 <mujoco>                       model                                # root element
   <compiler>                   angle, coordinate, meshdir            # global compile hints
   <option>                     timestep, gravity, integrator         # solver settings

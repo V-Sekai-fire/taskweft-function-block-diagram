@@ -68,16 +68,18 @@ def parse (path : String) (text : String) : Table :=
 def load (path : System.FilePath) : IO Table := do
   pure (parse path.toString (← IO.FS.readFile path))
 
-/-- The tables the compiler knows: every `.sigs` under `TASKWEFT_SIGS_DIR`, else `./sigs`,
-    else the `sigs` beside the repository the executable was built in. -/
-def loadAll : IO (List Table) := do
+/-- The tables the compiler knows. `--sigs <dir>` wins, then `TASKWEFT_SIGS_DIR`,
+    then `./sigs` and the `sigs` beside the repository the executable was built in.
+    The flag is the configuration a job carries; the variable is only the default. -/
+def loadAll (dir : Option String := none) : IO (List Table) := do
   let env ← IO.getEnv "TASKWEFT_SIGS_DIR"
+  let flag : List String := match dir with | some d => [d] | none => []
   let extra : List String := match env with | some d => [d] | none => []
-  let candidates : List System.FilePath := (extra ++ ["sigs", "../sigs", "../../sigs"]).map System.FilePath.mk
-  let mut dir : Option System.FilePath := none
+  let candidates : List System.FilePath := (flag ++ extra ++ ["sigs", "../sigs", "../../sigs"]).map System.FilePath.mk
+  let mut found : Option System.FilePath := none
   for c in candidates do
-    if dir.isNone && (← System.FilePath.isDir c) then dir := some c
-  match dir with
+    if found.isNone && (← System.FilePath.isDir c) then found := some c
+  match found with
   | none => pure []
   | some d =>
     let entries ← d.readDir
