@@ -66,6 +66,7 @@ jobs:
           "$B" to-xml fixtures/api/move_body.fbd | diff - fixtures/api/move_body.plcopen.xml
           "$B" to-dsl fixtures/api/move_body.plcopen.xml | diff - fixtures/api/move_body.fbd
           if "$B" plan fixtures/api/unknown_sig.fbd; then echo "the unknown signature lowered; the table check is decoration"; exit 1; fi
+          if "$B" check fixtures/api/unknown_sig.fbd; then echo "the unknown signature checked; check stops short of the tables"; exit 1; fi
           if "$B" plan fixtures/api/missing_arg.fbd; then echo "the missing argument lowered; the table check is decoration"; exit 1; fi
       - name: The scan controller agrees across its three forms and simulates the same from each
         run: |

@@ -87,8 +87,13 @@ def main (argv : List String) : IO UInt32 := do
           IO.println s!"ok {pou.name}: scan controller, {nl.nodes.length} block(s), {pou.inputVars.length} input(s), {pou.outputVars.length} output(s), {pou.localVars.length} local(s)"
           pure 0
       else
-        IO.println s!"ok {pou.name}: {pou.network.blocks.length} block(s), {os.length} operating-system, {pou.vars.length} variable(s), {pou.network.inputs.length} literal(s)"
-        pure 0
+        -- a step program is checked as far as its lowering: an unwired pin or a CALL
+        -- outside the tables is refused here, not first at plan time
+        match Sgd.lower pou (← Sigs.loadAll) with
+        | .error e => refuse e
+        | .ok _ =>
+          IO.println s!"ok {pou.name}: {pou.network.blocks.length} block(s), {os.length} operating-system, {pou.vars.length} variable(s), {pou.network.inputs.length} literal(s)"
+          pure 0
   | ["net", path] =>
     match ← loadPou path with
     | .error e => refuse e
