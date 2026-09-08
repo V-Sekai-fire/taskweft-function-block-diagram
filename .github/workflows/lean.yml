@@ -1,6 +1,7 @@
-# The Lean build and the two fixtures: the reference diagram must check, plan and
-# emit; the tag-soup control must be refused. A gate that passes on the control is
-# decoration, so the refusal is asserted, not assumed.
+# The Lean build and the fixtures: the reference diagram must check, plan and emit
+# from its XML, its text form and its lifted guest, and the three must agree; the
+# tag-soup, unwired-pin, unknown-block and unknown-kind controls must be refused.
+# A gate that passes on a control is decoration, so each refusal is asserted.
 name: lean
 
 on:
@@ -28,7 +29,23 @@ jobs:
           "$B" plan fixtures/write_hello.plcopen.xml | grep -q "\"WRITE_FILE#3\""
           "$B" emit fixtures/write_hello.plcopen.xml /tmp/write_hello.sgd
           grep -q "func pending" /tmp/write_hello.sgd
+      - name: The text form and the lifted guest agree with the XML
+        run: |
+          B=./.lake/build/bin/taskweft_fbd_compiler
+          "$B" to-dsl fixtures/write_hello.plcopen.xml > /tmp/rt.fbd
+          diff /tmp/rt.fbd fixtures/write_hello.fbd
+          "$B" to-xml fixtures/write_hello.fbd > /tmp/rt.xml
+          diff /tmp/rt.xml fixtures/write_hello.plcopen.xml
+          "$B" plan fixtures/write_hello.plcopen.xml > /tmp/p_xml.json
+          "$B" plan fixtures/write_hello.fbd > /tmp/p_fbd.json
+          "$B" plan fixtures/write_hello.sgd > /tmp/p_sgd.json
+          diff /tmp/p_xml.json /tmp/p_fbd.json
+          diff /tmp/p_xml.json /tmp/p_sgd.json
+          "$B" to-dsl fixtures/write_hello.sgd | diff - fixtures/write_hello.fbd
       - name: The control is refused
         run: |
           B=./.lake/build/bin/taskweft_fbd_compiler
           if "$B" check fixtures/loose_soup.xml; then echo "the control parsed; the parser is decoration"; exit 1; fi
+          if "$B" plan fixtures/unwired_pin.fbd; then echo "the unwired pin lowered; the lowering is decoration"; exit 1; fi
+          if "$B" check fixtures/unknown_block.fbd; then echo "the unknown block parsed; the text reader is decoration"; exit 1; fi
+          if "$B" check fixtures/unknown_kind.sgd; then echo "the unknown kind lifted; the lift is decoration"; exit 1; fi

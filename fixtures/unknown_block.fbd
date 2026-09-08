@@ -1,0 +1,4 @@
+program unknown
+var done : BOOL
+b3 = EXEC(CMD="python", ARGS="-c print(1)")
+done = b3.ENO
