@@ -1,0 +1,4 @@
+program bad2
+var done : BOOL
+p = CALL[Node3D.set_position](TARGET="/root/Body")
+done = p.ENO

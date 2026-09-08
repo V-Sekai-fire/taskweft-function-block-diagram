@@ -1,0 +1,30 @@
+# SafeGDScript, compiled by taskweft-fbd-compiler from POU move_body
+# 3 step(s). The host scene loads this program into a Sandbox node and
+# performs each step the guest asks for; the guest only decides what comes next.
+extends Node
+
+const PLAN := [
+	{"index": 0, "action": "CALL#3", "kind": "call", "command": "Node.get_node", "args": ["Body"], "path": "/root/Fixture", "content": "", "status": "planned"},
+	{"index": 1, "action": "CALL#5", "kind": "call", "command": "Node3D.set_position", "args": ["Vector3(1, 0, 2)"], "path": "#3.RET", "content": "", "status": "planned"},
+	{"index": 2, "action": "CALL#6", "kind": "call", "command": "Node3D.get_position", "args": [], "path": "#3.RET", "content": "", "status": "planned"}
+]
+
+var next_step := 0
+var failed_at := -1
+
+func steps() -> int:
+	return PLAN.size()
+
+func step(i: int) -> Dictionary:
+	return PLAN[i]
+
+func record(i: int, exit_code: int) -> void:
+	if exit_code == 0:
+		next_step = i + 1
+	else:
+		failed_at = i
+
+func pending() -> int:
+	if failed_at >= 0 or next_step >= PLAN.size():
+		return -1
+	return next_step

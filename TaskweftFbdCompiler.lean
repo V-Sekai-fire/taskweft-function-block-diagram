@@ -56,8 +56,11 @@ inductive Block where
   | eq | ne | lt | gt | le | ge
   -- edges
   | f_trig | r_trig
-  -- operating-system callables the host performs (RFD 2154's callable syscall)
+  -- operating-system callables the host performs (RFD 2157's callable syscall)
   | os_write | os_run | os_read
+  -- a call into a signature table (`sigs/*.sigs`): the instance slot names the
+  -- signature, the pins are its arguments plus TARGET, the host performs it
+  | call_
   deriving DecidableEq, Repr
 
 /-- What an input pin draws from: a literal expression, another block's

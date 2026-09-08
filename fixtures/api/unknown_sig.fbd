@@ -1,0 +1,4 @@
+program bad
+var done : BOOL
+p = CALL[Node3D.set_scale](TARGET="/root/Body", scale="Vector3(2,2,2)")
+done = p.ENO

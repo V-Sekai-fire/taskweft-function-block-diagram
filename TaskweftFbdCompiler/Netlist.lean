@@ -128,6 +128,7 @@ def pinsOf (b : Block) (wired : List String) : Except String (List String × Lis
   | .rs => pure (["S", "R1"], ["Q1"])
   | .ctu | .ctd | .ctud => throw "counters are not in the scan set yet"
   | .os_write | .os_run | .os_read => throw "operating-system blocks do not run per frame; they belong to a step program"
+  | .call_ => throw "CALL blocks run in step programs, where the host performs them; a per-frame CALL is the next stage"
 
 private def declared (pou : POU) (n : String) : Except String (Option VType) := do
   match pou.vars.find? (·.name == n) with

@@ -1,0 +1,65 @@
+# The trainer surface (RFD 2238): what a diagram may configure of an mjlab task
+# in the microduck layout. Rung 0: the velocity task's terms as `mjlab_motionbricks`
+# uses them, the action and command configs, and the microduck actuator's
+# randomisation fields.
+#
+# Source: mujocolab/mjlab 1.6.0 `tasks/velocity/velocity_env_cfg.py`,
+# `tasks/velocity/mdp/{rewards,observations,terminations}.py`, `envs/mdp/dr`;
+# pollen-robotics/microduck_rl `actuator/friction_dr_bam.py` (both Apache-2.0).
+#
+# Format: `Namespace.entry(arg: TYPE, ...) -> RESULT`. A `CALL` block over this
+# table lowers to a configuration step the environment builder applies; the
+# effect is the built environment's term table.
+
+# ---- reward terms -------------------------------------------------------
+
+Reward.track_linear_velocity(weight: REAL, std: REAL) -> Term
+Reward.track_angular_velocity(weight: REAL, std: REAL) -> Term
+Reward.upright(weight: REAL, std: REAL) -> Term
+Reward.pose(weight: REAL) -> Term
+Reward.body_ang_vel(weight: REAL) -> Term
+Reward.angular_momentum(weight: REAL) -> Term
+Reward.dof_pos_limits(weight: REAL) -> Term
+Reward.action_rate_l2(weight: REAL) -> Term
+Reward.air_time(weight: REAL) -> Term
+Reward.foot_clearance(weight: REAL, target_height: REAL) -> Term
+Reward.foot_swing_height(weight: REAL, target_height: REAL) -> Term
+Reward.foot_slip(weight: REAL) -> Term
+Reward.soft_landing(weight: REAL) -> Term
+Reward.self_collisions(weight: REAL, force_threshold: REAL) -> Term
+Reward.rom_penalty(weight: REAL) -> Term
+
+# ---- observations, metrics, terminations --------------------------------
+
+Observation.base_lin_vel(noise: REAL) -> Term
+Observation.base_ang_vel(noise: REAL) -> Term
+Observation.projected_gravity(noise: REAL) -> Term
+Observation.joint_pos(noise: REAL) -> Term
+Observation.joint_vel(noise: REAL) -> Term
+Observation.actions() -> Term
+Observation.command() -> Term
+Metric.rom_clearance() -> Term
+Metric.mean_action_acc() -> Term
+Termination.time_out() -> Term
+Termination.fell_over(limit_deg: REAL) -> Term
+
+# ---- actions, commands, simulation --------------------------------------
+
+Action.joint_pos(scale: REAL, use_default_offset: BOOL) -> Term
+Command.twist(lin_vel_x_min: REAL, lin_vel_x_max: REAL, lin_vel_y_min: REAL, lin_vel_y_max: REAL, ang_vel_z_min: REAL, ang_vel_z_max: REAL) -> Term
+Sim.control(timestep: REAL, decimation: INT) -> Term
+Sim.episode(length_s: REAL) -> Term
+Scene.num_envs(n: INT) -> Term
+
+# ---- domain randomisation (mjlab events) --------------------------------
+
+Event.foot_friction(min: REAL, max: REAL) -> Term
+Event.encoder_bias(min: REAL, max: REAL) -> Term
+Event.base_com(x: REAL, y: REAL, z: REAL) -> Term
+Event.push_robot(interval_min_s: REAL, interval_max_s: REAL, vel: REAL) -> Term
+
+# ---- the microduck actuator (FrictionDRBamActuator) ----------------------
+
+Actuator.bam(vin: REAL, vin_drop_gain: REAL, kp: REAL, friction_min: REAL, friction_max: REAL) -> Term
+Actuator.pd(stiffness: REAL, damping: REAL, effort_limit: REAL) -> Term
+Actuator.backlash(degrees: REAL) -> Term

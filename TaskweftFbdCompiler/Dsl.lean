@@ -23,7 +23,7 @@ open TaskweftFbdCompiler
 
 /-- The typeName each block prints as; the inverse of `Parser.blockOfTypeName`. -/
 def typeNameOf : Block → String
-  | .os_write => "WRITE_FILE" | .os_run => "RUN" | .os_read => "READ_FILE"
+  | .os_write => "WRITE_FILE" | .os_run => "RUN" | .os_read => "READ_FILE" | .call_ => "CALL"
   | .sr_l => "SR_L" | .rs => "RS" | .sr => "SR"
   | .and_ => "AND" | .or_ => "OR" | .not_ => "NOT" | .xor_ => "XOR"
   | .move => "MOVE" | .mux => "MUX" | .sel => "SEL" | .limit => "LIMIT"
@@ -193,7 +193,9 @@ private def stmt : P Stmt := do
       return .out name rhs pin
     | some '[' =>
       advance
-      let inst ← ident
+      -- an instance name, or a signature key such as Node3D.set_position
+      let inst ← takeWhile fun c => isIdentChar c || c == '.'
+      if inst.isEmpty then failAt "expected an instance or signature name"
       expectChar ']'
       expectChar '('
       let as ← args []
