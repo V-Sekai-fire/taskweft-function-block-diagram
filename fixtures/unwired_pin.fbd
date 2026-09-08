@@ -1,0 +1,4 @@
+program unwired
+var done : BOOL
+b2 = WRITE_FILE(PATH="a.txt")
+done = b2.ENO

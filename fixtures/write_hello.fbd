@@ -1,0 +1,5 @@
+program write_hello
+var done : BOOL
+b3 = WRITE_FILE(PATH="out.txt", TEXT="hello")
+b5 = READ_FILE(EN=b3.ENO, PATH="out.txt")
+done = b5.ENO
