@@ -1,0 +1,15 @@
+program react_planned
+in trigger : BOOL
+out face_from_stick : BOOL
+out style : INT
+var holding0 : BOOL
+b2 = R_TRIG(CLK=trigger)
+b5 = SEL(G=b2.Q, IN0=face_from_stick, IN1=TRUE)
+b8 = SEL(G=b2.Q, IN0=style, IN1=3)
+b11 = TON(IN=holding0, PT=2.0)
+b12 = SR(S1=b2.Q, R=b11.Q)
+b14 = R_TRIG(CLK=b11.Q)
+b16 = SEL(G=b14.Q, IN0=b8.OUT, IN1=0)
+holding0 = b12.Q1
+face_from_stick = b5.OUT
+style = b16.OUT

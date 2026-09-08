@@ -19,11 +19,19 @@ inductive TypeTag where
   | string_
   deriving DecidableEq, Repr
 
+/-- Which interface section a variable sits in. Inputs are written by the host
+    before a scan, outputs read after it, locals carry state between scans. -/
+inductive VarKind where
+  | input | output | local
+  deriving DecidableEq, Repr
+
 structure Variable where
   name        : String
   type        : TypeTag
+  kind        : VarKind := .local
   initialBool : Option Bool := none
   initialInt  : Option Int  := none
+  initialReal : Option Float := none
   initialString : Option String := none
   deriving Repr
 
@@ -108,5 +116,9 @@ structure POU where
   vars    : List Variable
   network : Network
   deriving Repr
+
+def POU.inputVars (p : POU) : List Variable := p.vars.filter (·.kind == .input)
+def POU.outputVars (p : POU) : List Variable := p.vars.filter (·.kind == .output)
+def POU.localVars (p : POU) : List Variable := p.vars.filter (·.kind == .local)
 
 end TaskweftFbdCompiler

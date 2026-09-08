@@ -1,0 +1,6 @@
+program comb_cycle
+in a : BOOL
+out q : BOOL
+x = AND(IN1=a, IN2=y.OUT)
+y = OR(IN1=x.OUT, IN2=a)
+q = y.OUT

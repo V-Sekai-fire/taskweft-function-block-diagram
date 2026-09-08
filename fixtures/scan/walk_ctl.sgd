@@ -1,0 +1,179 @@
+# SafeGDScript, compiled by taskweft-fbd-compiler from POU walk_ctl
+# scan controller: one scan per tick(inputs, dt); 4 input(s), 5 output(s), 1 local(s), 9 block(s)
+extends Node
+
+const NET := """
+{"vars":
+ [{"type": "REAL", "name": "lx", "kind": "in", "init": 0},
+  {"type": "REAL", "name": "ly", "kind": "in", "init": 0},
+  {"type": "BOOL", "name": "btn_a", "kind": "in", "init": false},
+  {"type": "BOOL", "name": "tracker_ok", "kind": "in", "init": false},
+  {"type": "INT", "name": "style", "kind": "out", "init": 0},
+  {"type": "REAL", "name": "move_x", "kind": "out", "init": 0},
+  {"type": "REAL", "name": "move_z", "kind": "out", "init": 0},
+  {"type": "REAL", "name": "speed", "kind": "out", "init": 0},
+  {"type": "BOOL", "name": "chain_frozen", "kind": "out", "init": false},
+  {"type": "BOOL", "name": "greeting", "kind": "var", "init": false}],
+ "pou": "walk_ctl",
+ "outs":
+ [{"var": "move_x", "src": [3, "OUT"]},
+  {"var": "move_z", "src": [9, "OUT"]},
+  {"var": "speed", "src": [6, "OUT"]},
+  {"var": "style", "src": [18, "OUT"]},
+  {"var": "chain_frozen", "src": [22, "Q"]},
+  {"var": "greeting", "src": [15, "Q1"]}],
+ "order": [3, 6, 9, 11, 14, 15, 18, 20, 22],
+ "blocks":
+ [{"type": "MUL",
+   "out": {"OUT": "REAL"},
+   "inst": null,
+   "in": {"IN2": {"text": "1.2", "lit": 1.2}, "IN1": {"var": "lx"}},
+   "id": 3,
+   "en": null},
+  {"type": "LIMIT",
+   "out": {"OUT": "REAL"},
+   "inst": null,
+   "in":
+   {"MX": {"text": "1.2", "lit": 1.2},
+    "MN": {"text": "0.0", "lit": 0},
+    "IN": [3, "OUT"]},
+   "id": 6,
+   "en": null},
+  {"type": "MUL",
+   "out": {"OUT": "REAL"},
+   "inst": null,
+   "in": {"IN2": {"text": "1.2", "lit": 1.2}, "IN1": {"var": "ly"}},
+   "id": 9,
+   "en": null},
+  {"type": "R_TRIG",
+   "out": {"Q": "BOOL"},
+   "inst": null,
+   "in": {"CLK": {"var": "btn_a"}},
+   "id": 11,
+   "en": null},
+  {"type": "TON",
+   "out": {"Q": "BOOL", "ET": "REAL"},
+   "inst": null,
+   "in": {"PT": {"text": "T#2s", "lit": 2}, "IN": {"var": "greeting"}},
+   "id": 14,
+   "en": null},
+  {"type": "SR",
+   "out": {"Q1": "BOOL"},
+   "inst": null,
+   "in": {"S1": [11, "Q"], "R": [14, "Q"]},
+   "id": 15,
+   "en": null},
+  {"type": "SEL",
+   "out": {"OUT": "INT"},
+   "inst": null,
+   "in":
+   {"IN1": {"text": "3", "lit": 3},
+    "IN0": {"text": "0", "lit": 0},
+    "G": [15, "Q1"]},
+   "id": 18,
+   "en": null},
+  {"type": "NOT",
+   "out": {"OUT": "BOOL"},
+   "inst": null,
+   "in": {"IN": {"var": "tracker_ok"}},
+   "id": 20,
+   "en": null},
+  {"type": "TON",
+   "out": {"Q": "BOOL", "ET": "REAL"},
+   "inst": null,
+   "in": {"PT": {"text": "T#500ms", "lit": 0.5}, "IN": [20, "OUT"]},
+   "id": 22,
+   "en": null}]}
+"""
+
+var v_style: int = 0
+var v_move_x: float = 0.0
+var v_move_z: float = 0.0
+var v_speed: float = 0.0
+var v_chain_frozen: bool = false
+var v_greeting: bool = false
+var s11_m: bool = false
+var s14_et: float = 0.0
+var s15_run: bool = false
+var s22_et: float = 0.0
+
+func reset() -> void:
+	v_style = 0
+	v_move_x = 0.0
+	v_move_z = 0.0
+	v_speed = 0.0
+	v_chain_frozen = false
+	v_greeting = false
+	s11_m = false
+	s14_et = 0.0
+	s15_run = false
+	s22_et = 0.0
+
+func state() -> Dictionary:
+	return {"style": v_style, "move_x": v_move_x, "move_z": v_move_z, "speed": v_speed, "chain_frozen": v_chain_frozen, "greeting": v_greeting, "s11_m": s11_m, "s14_et": s14_et, "s15_run": s15_run, "s22_et": s22_et}
+
+func tick(inputs: Dictionary, dt: float) -> Dictionary:
+	var i_lx: float = float(inputs.get("lx", 0.0))
+	var i_ly: float = float(inputs.get("ly", 0.0))
+	var i_btn_a: bool = bool(inputs.get("btn_a", false))
+	var i_tracker_ok: bool = bool(inputs.get("tracker_ok", false))
+	# MUL#3
+	var w3_OUT: float = 0.0
+	var w3_ENO: bool = true
+	w3_OUT = i_lx * 1.2
+	# LIMIT#6
+	var w6_OUT: float = 0.0
+	var w6_ENO: bool = true
+	w6_OUT = max(0.0, min(w3_OUT, 1.2))
+	# MUL#9
+	var w9_OUT: float = 0.0
+	var w9_ENO: bool = true
+	w9_OUT = i_ly * 1.2
+	# R_TRIG#11
+	var w11_Q: bool = false
+	var n11_m = s11_m
+	var w11_ENO: bool = true
+	w11_Q = i_btn_a and not s11_m
+	n11_m = i_btn_a
+	# TON#14
+	var w14_Q: bool = false
+	var w14_ET: float = 0.0
+	var n14_et = s14_et
+	var w14_ENO: bool = true
+	n14_et = 0.0 if not v_greeting else min(s14_et + dt, 2.0)
+	w14_Q = v_greeting and n14_et >= 2.0
+	w14_ET = n14_et
+	# SR#15
+	var w15_Q1: bool = false
+	var n15_run = s15_run
+	var w15_ENO: bool = true
+	w15_Q1 = w11_Q or ((not w14_Q) and s15_run)
+	n15_run = w15_Q1
+	# SEL#18
+	var w18_OUT: int = 0
+	var w18_ENO: bool = true
+	w18_OUT = 3 if w15_Q1 else 0
+	# NOT#20
+	var w20_OUT: bool = false
+	var w20_ENO: bool = true
+	w20_OUT = not i_tracker_ok
+	# TON#22
+	var w22_Q: bool = false
+	var w22_ET: float = 0.0
+	var n22_et = s22_et
+	var w22_ENO: bool = true
+	n22_et = 0.0 if not w20_OUT else min(s22_et + dt, 0.5)
+	w22_Q = w20_OUT and n22_et >= 0.5
+	w22_ET = n22_et
+	# commit block state
+	s11_m = n11_m
+	s14_et = n14_et
+	s15_run = n15_run
+	s22_et = n22_et
+	v_move_x = w3_OUT
+	v_move_z = w9_OUT
+	v_speed = w6_OUT
+	v_style = w18_OUT
+	v_chain_frozen = w22_Q
+	v_greeting = w15_Q1
+	return {"style": v_style, "move_x": v_move_x, "move_z": v_move_z, "speed": v_speed, "chain_frozen": v_chain_frozen}

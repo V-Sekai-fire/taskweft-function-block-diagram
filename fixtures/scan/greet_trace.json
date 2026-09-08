@@ -1,0 +1,9 @@
+{"dt": 0.1, "ticks": [
+ {"trigger": false}, {"trigger": true}, {"trigger": true}, {"trigger": false},
+ {"trigger": false}, {"trigger": false}, {"trigger": false}, {"trigger": false},
+ {"trigger": false}, {"trigger": false}, {"trigger": false}, {"trigger": false},
+ {"trigger": false}, {"trigger": false}, {"trigger": false}, {"trigger": false},
+ {"trigger": false}, {"trigger": false}, {"trigger": false}, {"trigger": false},
+ {"trigger": false}, {"trigger": false}, {"trigger": false}, {"trigger": false},
+ {"trigger": false}, {"trigger": true}, {"trigger": false}, {"trigger": false}
+]}

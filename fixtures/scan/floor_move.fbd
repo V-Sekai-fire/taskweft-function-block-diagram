@@ -1,0 +1,5 @@
+program floor_move
+in a : BOOL
+out q : BOOL
+g = MOVE(IN=a)
+q = g.OUT

@@ -1,0 +1,124 @@
+<pou name="walk_ctl" pouType="program">
+  <interface>
+    <inputVars>
+      <variable name="lx"><type><REAL/></type></variable>
+      <variable name="ly"><type><REAL/></type></variable>
+      <variable name="btn_a"><type><BOOL/></type></variable>
+      <variable name="tracker_ok"><type><BOOL/></type></variable>
+    </inputVars>
+    <outputVars>
+      <variable name="style"><type><INT/></type></variable>
+      <variable name="move_x"><type><REAL/></type></variable>
+      <variable name="move_z"><type><REAL/></type></variable>
+      <variable name="speed"><type><REAL/></type></variable>
+      <variable name="chain_frozen"><type><BOOL/></type></variable>
+    </outputVars>
+    <localVars>
+      <variable name="greeting"><type><BOOL/></type></variable>
+    </localVars>
+  </interface>
+  <body>
+    <FBD>
+      <inVariable localId="1"><expression>lx</expression></inVariable>
+      <inVariable localId="2"><expression>1.2</expression></inVariable>
+      <block localId="3" typeName="MUL">
+        <inputVariables>
+          <variable formalParameter="IN1"><connectionPointIn><connection refLocalId="1" formalParameter="OUT"/></connectionPointIn></variable>
+          <variable formalParameter="IN2"><connectionPointIn><connection refLocalId="2" formalParameter="OUT"/></connectionPointIn></variable>
+        </inputVariables>
+        <outputVariables>
+          <variable formalParameter="ENO"/>
+        </outputVariables>
+      </block>
+      <inVariable localId="4"><expression>0.0</expression></inVariable>
+      <inVariable localId="5"><expression>1.2</expression></inVariable>
+      <block localId="6" typeName="LIMIT">
+        <inputVariables>
+          <variable formalParameter="MN"><connectionPointIn><connection refLocalId="4" formalParameter="OUT"/></connectionPointIn></variable>
+          <variable formalParameter="IN"><connectionPointIn><connection refLocalId="3" formalParameter="OUT"/></connectionPointIn></variable>
+          <variable formalParameter="MX"><connectionPointIn><connection refLocalId="5" formalParameter="OUT"/></connectionPointIn></variable>
+        </inputVariables>
+        <outputVariables>
+          <variable formalParameter="ENO"/>
+        </outputVariables>
+      </block>
+      <inVariable localId="7"><expression>ly</expression></inVariable>
+      <inVariable localId="8"><expression>1.2</expression></inVariable>
+      <block localId="9" typeName="MUL">
+        <inputVariables>
+          <variable formalParameter="IN1"><connectionPointIn><connection refLocalId="7" formalParameter="OUT"/></connectionPointIn></variable>
+          <variable formalParameter="IN2"><connectionPointIn><connection refLocalId="8" formalParameter="OUT"/></connectionPointIn></variable>
+        </inputVariables>
+        <outputVariables>
+          <variable formalParameter="ENO"/>
+        </outputVariables>
+      </block>
+      <inVariable localId="10"><expression>btn_a</expression></inVariable>
+      <block localId="11" typeName="R_TRIG">
+        <inputVariables>
+          <variable formalParameter="CLK"><connectionPointIn><connection refLocalId="10" formalParameter="OUT"/></connectionPointIn></variable>
+        </inputVariables>
+        <outputVariables>
+          <variable formalParameter="ENO"/>
+        </outputVariables>
+      </block>
+      <inVariable localId="12"><expression>greeting</expression></inVariable>
+      <inVariable localId="13"><expression>T#2s</expression></inVariable>
+      <block localId="14" typeName="TON">
+        <inputVariables>
+          <variable formalParameter="IN"><connectionPointIn><connection refLocalId="12" formalParameter="OUT"/></connectionPointIn></variable>
+          <variable formalParameter="PT"><connectionPointIn><connection refLocalId="13" formalParameter="OUT"/></connectionPointIn></variable>
+        </inputVariables>
+        <outputVariables>
+          <variable formalParameter="ENO"/>
+        </outputVariables>
+      </block>
+      <block localId="15" typeName="SR">
+        <inputVariables>
+          <variable formalParameter="S1"><connectionPointIn><connection refLocalId="11" formalParameter="Q"/></connectionPointIn></variable>
+          <variable formalParameter="R"><connectionPointIn><connection refLocalId="14" formalParameter="Q"/></connectionPointIn></variable>
+        </inputVariables>
+        <outputVariables>
+          <variable formalParameter="ENO"/>
+        </outputVariables>
+      </block>
+      <inVariable localId="16"><expression>0</expression></inVariable>
+      <inVariable localId="17"><expression>3</expression></inVariable>
+      <block localId="18" typeName="SEL">
+        <inputVariables>
+          <variable formalParameter="G"><connectionPointIn><connection refLocalId="15" formalParameter="Q1"/></connectionPointIn></variable>
+          <variable formalParameter="IN0"><connectionPointIn><connection refLocalId="16" formalParameter="OUT"/></connectionPointIn></variable>
+          <variable formalParameter="IN1"><connectionPointIn><connection refLocalId="17" formalParameter="OUT"/></connectionPointIn></variable>
+        </inputVariables>
+        <outputVariables>
+          <variable formalParameter="ENO"/>
+        </outputVariables>
+      </block>
+      <inVariable localId="19"><expression>tracker_ok</expression></inVariable>
+      <block localId="20" typeName="NOT">
+        <inputVariables>
+          <variable formalParameter="IN"><connectionPointIn><connection refLocalId="19" formalParameter="OUT"/></connectionPointIn></variable>
+        </inputVariables>
+        <outputVariables>
+          <variable formalParameter="ENO"/>
+        </outputVariables>
+      </block>
+      <inVariable localId="21"><expression>T#500ms</expression></inVariable>
+      <block localId="22" typeName="TON">
+        <inputVariables>
+          <variable formalParameter="IN"><connectionPointIn><connection refLocalId="20" formalParameter="OUT"/></connectionPointIn></variable>
+          <variable formalParameter="PT"><connectionPointIn><connection refLocalId="21" formalParameter="OUT"/></connectionPointIn></variable>
+        </inputVariables>
+        <outputVariables>
+          <variable formalParameter="ENO"/>
+        </outputVariables>
+      </block>
+      <outVariable localId="23"><connectionPointIn><connection refLocalId="3" formalParameter="OUT"/></connectionPointIn><expression>move_x</expression></outVariable>
+      <outVariable localId="24"><connectionPointIn><connection refLocalId="9" formalParameter="OUT"/></connectionPointIn><expression>move_z</expression></outVariable>
+      <outVariable localId="25"><connectionPointIn><connection refLocalId="6" formalParameter="OUT"/></connectionPointIn><expression>speed</expression></outVariable>
+      <outVariable localId="26"><connectionPointIn><connection refLocalId="18" formalParameter="OUT"/></connectionPointIn><expression>style</expression></outVariable>
+      <outVariable localId="27"><connectionPointIn><connection refLocalId="22" formalParameter="Q"/></connectionPointIn><expression>chain_frozen</expression></outVariable>
+      <outVariable localId="28"><connectionPointIn><connection refLocalId="15" formalParameter="Q1"/></connectionPointIn><expression>greeting</expression></outVariable>
+    </FBD>
+  </body>
+</pou>

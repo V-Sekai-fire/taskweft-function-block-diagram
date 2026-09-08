@@ -1,0 +1,37 @@
+<pou name="comb_cycle" pouType="program">
+  <interface>
+    <inputVars>
+      <variable name="a"><type><BOOL/></type></variable>
+    </inputVars>
+    <outputVars>
+      <variable name="q"><type><BOOL/></type></variable>
+    </outputVars>
+    <localVars>
+    </localVars>
+  </interface>
+  <body>
+    <FBD>
+      <inVariable localId="1"><expression>a</expression></inVariable>
+      <block localId="2" typeName="AND">
+        <inputVariables>
+          <variable formalParameter="IN1"><connectionPointIn><connection refLocalId="1" formalParameter="OUT"/></connectionPointIn></variable>
+          <variable formalParameter="IN2"><connectionPointIn><connection refLocalId="4" formalParameter="OUT"/></connectionPointIn></variable>
+        </inputVariables>
+        <outputVariables>
+          <variable formalParameter="ENO"/>
+        </outputVariables>
+      </block>
+      <inVariable localId="3"><expression>a</expression></inVariable>
+      <block localId="4" typeName="OR">
+        <inputVariables>
+          <variable formalParameter="IN1"><connectionPointIn><connection refLocalId="2" formalParameter="OUT"/></connectionPointIn></variable>
+          <variable formalParameter="IN2"><connectionPointIn><connection refLocalId="3" formalParameter="OUT"/></connectionPointIn></variable>
+        </inputVariables>
+        <outputVariables>
+          <variable formalParameter="ENO"/>
+        </outputVariables>
+      </block>
+      <outVariable localId="5"><connectionPointIn><connection refLocalId="4" formalParameter="OUT"/></connectionPointIn><expression>q</expression></outVariable>
+    </FBD>
+  </body>
+</pou>

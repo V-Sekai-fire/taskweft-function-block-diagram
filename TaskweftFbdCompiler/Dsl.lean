@@ -113,6 +113,9 @@ private def arg : P Arg := do
       | some '.' =>
         advance
         return .ref n (← ident)
+      | some '#' =>
+        let rest ← takeWhile isRawChar
+        return .raw (n ++ rest)
       | _ => return .raw n
     else if c.isDigit || c == '-' then
       return .raw (← takeWhile isRawChar)
@@ -142,11 +145,29 @@ private def endOfLine : P Unit := do
   | some '#' => pure ()
   | some _ => failAt "trailing text"
 
-private def literalInit (ty : TypeTag) (raw : String) : Variable → Variable := fun v =>
-  { v with
-    initialString := some (Parser.stripQuotes raw),
-    initialBool := match raw.toUpper with | "TRUE" => some true | "FALSE" => some false | _ => none,
-    initialInt := if ty == .string_ then none else raw.toInt? }
+/-- `in`, `out` and `var` lines share one shape: name, type, optional initial. -/
+private def varDecl (kind : VarKind) : P Stmt := do
+  let n ← ident
+  skipWs
+  expectChar ':'
+  skipWs
+  let tyN ← ident
+  let some ty := Parser.typeOfName tyN | throw s!"variable {n}: unknown type '{tyN}'"
+  skipWs
+  let base : Variable := { name := n, type := ty, kind }
+  match ← peek with
+  | some '=' =>
+    advance
+    skipWs
+    let raw ← match ← peek with
+      | some '"' => do pure ("'" ++ (← strLit) ++ "'")
+      | _ => takeWhile isRawChar
+    let v := Parser.initials ty raw base
+    endOfLine
+    return .var_ v
+  | _ =>
+    endOfLine
+    return .var_ base
 
 private def stmt : P Stmt := do
   skipWs
@@ -157,28 +178,9 @@ private def stmt : P Stmt := do
     let n ← ident
     endOfLine
     return .program n
-  | "var" =>
-    let n ← ident
-    skipWs
-    expectChar ':'
-    skipWs
-    let tyN ← ident
-    let some ty := Parser.typeOfName tyN | throw s!"variable {n}: unknown type '{tyN}'"
-    skipWs
-    let base : Variable := { name := n, type := ty }
-    match ← peek with
-    | some '=' =>
-      advance
-      skipWs
-      let raw ← match ← peek with
-        | some '"' => do pure ("'" ++ (← strLit) ++ "'")
-        | _ => takeWhile isRawChar
-      let v := literalInit ty raw base
-      endOfLine
-      return .var_ v
-    | _ =>
-      endOfLine
-      return .var_ base
+  | "in" => varDecl .input
+  | "out" => varDecl .output
+  | "var" => varDecl .local
   | name =>
     expectChar '='
     skipWs
@@ -290,11 +292,13 @@ private def argText (pou : POU) : InputSource → String
   | .fromVar v => v
 
 private def varText (v : Variable) : String :=
-  let init := match v.type, v.initialString with
-    | .string_, some s => s!" = {quote s}"
-    | _, some s => s!" = {s}"
-    | _, none => ""
-  s!"var {v.name} : {typeTagName v.type}{init}"
+  let init := match v.type, v.initialString, v.initialReal with
+    | .string_, some s, _ => s!" = {quote s}"
+    | _, _, some r => s!" = {Parser.fmtReal r}"
+    | _, some s, _ => s!" = {s}"
+    | _, none, none => ""
+  let head := match v.kind with | .input => "in" | .output => "out" | .local => "var"
+  s!"{head} {v.name} : {typeTagName v.type}{init}"
 
 private def insertById (b : BlockInstance) : List BlockInstance → List BlockInstance
   | [] => [b]

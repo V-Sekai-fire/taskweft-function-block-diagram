@@ -1,0 +1,26 @@
+program walk_ctl
+in lx : REAL
+in ly : REAL
+in btn_a : BOOL
+in tracker_ok : BOOL
+out style : INT
+out move_x : REAL
+out move_z : REAL
+out speed : REAL
+out chain_frozen : BOOL
+var greeting : BOOL
+b3 = MUL(IN1=lx, IN2=1.2)
+b6 = LIMIT(MN=0.0, IN=b3.OUT, MX=1.2)
+b9 = MUL(IN1=ly, IN2=1.2)
+b11 = R_TRIG(CLK=btn_a)
+b14 = TON(IN=greeting, PT=T#2s)
+b15 = SR(S1=b11.Q, R=b14.Q)
+b18 = SEL(G=b15.Q1, IN0=0, IN1=3)
+b20 = NOT(IN=tracker_ok)
+b22 = TON(IN=b20.OUT, PT=T#500ms)
+move_x = b3.OUT
+move_z = b9.OUT
+speed = b6.OUT
+style = b18.OUT
+chain_frozen = b22.Q
+greeting = b15.Q1
