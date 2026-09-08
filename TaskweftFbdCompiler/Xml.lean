@@ -20,11 +20,13 @@ def escape (s : String) : String :=
       | c => c.toString)) ""
 
 private def variableXml (v : Variable) : String :=
-  let init := match v.type, v.initialString, v.initialBool, v.initialInt with
-    | .string_, some s, _, _ => s!"<initialValue><simpleValue value=\"'{escape s}'\"/></initialValue>"
-    | _, _, some b, _ => s!"<initialValue><simpleValue value=\"{if b then "TRUE" else "FALSE"}\"/></initialValue>"
-    | _, _, _, some i => s!"<initialValue><simpleValue value=\"{i}\"/></initialValue>"
-    | _, _, _, _ => ""
+  let simple (s : String) := s!"<initialValue><simpleValue value=\"{s}\"/></initialValue>"
+  let init := match v.type, v.initialString, v.initialBool, v.initialInt, v.initialReal with
+    | .string_, some s, _, _, _ => simple s!"'{escape s}'"
+    | _, _, some b, _, _ => simple (if b then "TRUE" else "FALSE")
+    | _, _, _, _, some r => simple (Parser.fmtReal r)
+    | _, _, _, some i, _ => simple (toString i)
+    | _, _, _, _, _ => ""
   s!"      <variable name=\"{escape v.name}\"><type><{Dsl.typeTagName v.type}/></type>{init}</variable>\n"
 
 private def connection (ref : Nat) (formal : String) : String :=
@@ -62,8 +64,11 @@ def print (pou : POU) : Except String String := do
       outs := outs ++ [s!"      <outVariable localId=\"{next}\">{connection c.sourceLocalId c.sourceFormal}<expression>{escape v}</expression></outVariable>\n"]
       next := next + 1
     | .toBlock id p => throw s!"connection into block {id} pin {p}: not in the FBD subset"
+  let varsXml (tag : String) (vs : List Variable) : String :=
+    if vs.isEmpty then "" else s!"    <{tag}>\n" ++ String.join (vs.map variableXml) ++ s!"    </{tag}>\n"
   pure (s!"<pou name=\"{escape pou.name}\" pouType=\"program\">\n"
-    ++ "  <interface>\n    <localVars>\n" ++ String.join (pou.vars.map variableXml) ++ "    </localVars>\n  </interface>\n"
+    ++ "  <interface>\n" ++ varsXml "inputVars" pou.inputVars ++ varsXml "outputVars" pou.outputVars
+    ++ "    <localVars>\n" ++ String.join (pou.localVars.map variableXml) ++ "    </localVars>\n  </interface>\n"
     ++ "  <body>\n    <FBD>\n" ++ String.join (items.map (·.2)) ++ String.join outs ++ "    </FBD>\n  </body>\n</pou>\n")
 
 end TaskweftFbdCompiler.Xml

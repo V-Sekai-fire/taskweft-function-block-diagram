@@ -8,6 +8,10 @@ program lifted back (`.sgd`, `.gd`).
   taskweft_fbd_compiler emit   <diagram> <out.sgd>  the SafeGDScript guest program
   taskweft_fbd_compiler to-dsl <diagram>            the text form on stdout
   taskweft_fbd_compiler to-xml <diagram>            PLCopen XML on stdout
+  taskweft_fbd_compiler net    <diagram>            the scan netlist as JSON
+  taskweft_fbd_compiler sim    <diagram> <trace>    the reference scan over a trace, one line per tick
+  taskweft_fbd_compiler emit-scan <diagram> <out>   the per-frame SafeGDScript guest (tick/reset/state)
+  taskweft_fbd_compiler gen-scan <dir>              the enumerated harness controllers and traces
   taskweft_fbd_compiler                             write hello.elf (RFD 2153 stage 0)
 
 A refusal exits 1 with the reason on stderr, so a dataset writer or a door can
@@ -21,9 +25,18 @@ import TaskweftFbdCompiler.Sgd
 import TaskweftFbdCompiler.Dsl
 import TaskweftFbdCompiler.Xml
 import TaskweftFbdCompiler.Lift
+import TaskweftFbdCompiler.Netlist
+import TaskweftFbdCompiler.Semantics
+import TaskweftFbdCompiler.Scan
+import TaskweftFbdCompiler.Gen
 import TaskweftFbdCompiler.Elf
 
 open TaskweftFbdCompiler
+
+/-- A POU with declared inputs or outputs, or any block outside the three
+    operating-system ones, is a scan controller. -/
+private def isController (pou : POU) : Bool :=
+  !pou.inputVars.isEmpty || !pou.outputVars.isEmpty || pou.network.blocks.any (!Sgd.isOs ·.block)
 
 private def refuse (msg : String) : IO UInt32 := do
   IO.eprintln s!"error: {msg}"
@@ -64,8 +77,35 @@ def main (argv : List String) : IO UInt32 := do
     | .error e => refuse e
     | .ok pou =>
       let os := pou.network.blocks.filter (Sgd.isOs ·.block)
-      IO.println s!"ok {pou.name}: {pou.network.blocks.length} block(s), {os.length} operating-system, {pou.vars.length} variable(s), {pou.network.inputs.length} literal(s)"
-      pure 0
+      if isController pou then
+        match Netlist.build pou with
+        | .error e => refuse e
+        | .ok nl =>
+          IO.println s!"ok {pou.name}: scan controller, {nl.nodes.length} block(s), {pou.inputVars.length} input(s), {pou.outputVars.length} output(s), {pou.localVars.length} local(s)"
+          pure 0
+      else
+        IO.println s!"ok {pou.name}: {pou.network.blocks.length} block(s), {os.length} operating-system, {pou.vars.length} variable(s), {pou.network.inputs.length} literal(s)"
+        pure 0
+  | ["net", path] =>
+    match ← loadPou path with
+    | .error e => refuse e
+    | .ok pou =>
+      match Netlist.build pou with
+      | .error e => refuse e
+      | .ok nl => IO.println (Scan.netJson nl).pretty; pure 0
+  | ["sim", path, tracePath] =>
+    match ← loadPou path with
+    | .error e => refuse e
+    | .ok pou =>
+      match Netlist.build pou with
+      | .error e => refuse e
+      | .ok nl =>
+        let text ← IO.FS.readFile tracePath
+        match Lean.Json.parse text >>= Semantics.run nl with
+        | .error e => refuse e
+        | .ok lines =>
+          for l in lines do IO.println l
+          pure 0
   | ["emit", path, out] =>
     match ← lowered path with
     | .error e => refuse e
@@ -79,7 +119,21 @@ def main (argv : List String) : IO UInt32 := do
     | .ok (pou, l) =>
       IO.println (Sgd.toJson pou l)
       pure 0
+  | ["emit-scan", path, out] =>
+    match ← loadPou path with
+    | .error e => refuse e
+    | .ok pou =>
+      match Scan.emit pou with
+      | .error e => refuse e
+      | .ok text =>
+        IO.FS.writeFile out text
+        IO.println s!"scan controller {pou.name} to {out}"
+        pure 0
+  | ["gen-scan", dir] =>
+    let (h, t) ← Gen.write dir
+    IO.println s!"wrote {h} harness controller(s) and {t} trace(s) to {dir}"
+    pure 0
   | ["to-dsl", path] => printed path Dsl.print
   | ["to-xml", path] => printed path Xml.print
   | _ =>
-    refuse "usage: taskweft_fbd_compiler [check <diagram> | plan <diagram> | emit <diagram> <out.sgd> | to-dsl <diagram> | to-xml <diagram>]"
+    refuse "usage: taskweft_fbd_compiler [check <diagram> | plan <diagram> | emit <diagram> <out.sgd> | to-dsl <diagram> | to-xml <diagram> | net <diagram> | sim <diagram> <trace.json> | emit-scan <diagram> <out.sgd> | gen-scan <dir>]"

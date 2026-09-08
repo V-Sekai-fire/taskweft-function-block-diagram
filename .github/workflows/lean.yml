@@ -1,7 +1,9 @@
 # The Lean build and the fixtures: the reference diagram must check, plan and emit
 # from its XML, its text form and its lifted guest, and the three must agree; the
-# tag-soup, unwired-pin, unknown-block and unknown-kind controls must be refused.
-# A gate that passes on a control is decoration, so each refusal is asserted.
+# scan controller must round-trip through all three forms, simulate identically
+# from each, and its enumerated harness must simulate on every trace; every
+# control must be refused by name. A gate that passes on a control is decoration,
+# so each refusal is asserted. The Godot half (scripts/diff_scan.sh) runs on a desk.
 name: lean
 
 on:
@@ -49,3 +51,56 @@ jobs:
           if "$B" plan fixtures/unwired_pin.fbd; then echo "the unwired pin lowered; the lowering is decoration"; exit 1; fi
           if "$B" check fixtures/unknown_block.fbd; then echo "the unknown block parsed; the text reader is decoration"; exit 1; fi
           if "$B" check fixtures/unknown_kind.sgd; then echo "the unknown kind lifted; the lift is decoration"; exit 1; fi
+      - name: The scan controller agrees across its three forms and simulates the same from each
+        run: |
+          B=./.lake/build/bin/taskweft_fbd_compiler
+          F=fixtures/scan
+          "$B" check "$F/walk_ctl.fbd" | grep -q "scan controller, 9 block"
+          "$B" to-xml "$F/walk_ctl.fbd" | diff - "$F/walk_ctl.plcopen.xml"
+          "$B" to-dsl "$F/walk_ctl.plcopen.xml" | diff - "$F/walk_ctl.fbd"
+          "$B" emit-scan "$F/walk_ctl.fbd" /tmp/walk_ctl.sgd
+          diff /tmp/walk_ctl.sgd "$F/walk_ctl.sgd"
+          "$B" to-dsl "$F/walk_ctl.sgd" | diff - "$F/walk_ctl.fbd"
+          "$B" emit-scan "$F/walk_ctl.sgd" /tmp/re.sgd
+          diff /tmp/re.sgd "$F/walk_ctl.sgd"
+          "$B" sim "$F/walk_ctl.fbd" "$F/walk_trace.json" | diff - "$F/walk_expected.jsonl"
+          "$B" sim "$F/walk_ctl.plcopen.xml" "$F/walk_trace.json" | diff - "$F/walk_expected.jsonl"
+          "$B" sim "$F/walk_ctl.sgd" "$F/walk_trace.json" | diff - "$F/walk_expected.jsonl"
+          "$B" sim "$F/mux_range.fbd" "$F/mux_trace.json" | grep -q '"fault":"MUX#5: K=7 outside IN0..IN2"'
+      - name: The planner's greet plan lifts into a controller that holds and releases
+        run: |
+          B=./.lake/build/bin/taskweft_fbd_compiler
+          F=fixtures/scan
+          "$B" to-dsl "$F/greet_plan.sgd" | diff - "$F/greet.fbd"
+          "$B" emit-scan "$F/greet.fbd" /tmp/greet.sgd
+          diff /tmp/greet.sgd "$F/greet.sgd"
+          "$B" sim "$F/greet.fbd" "$F/greet_trace.json" | diff - "$F/greet_expected.jsonl"
+          sed -n '2p' "$F/greet_expected.jsonl" | grep -q '"style":3'
+          sed -n '22p' "$F/greet_expected.jsonl" | grep -q '"style":0'
+      - name: The scan controls are refused by name
+        run: |
+          B=./.lake/build/bin/taskweft_fbd_compiler
+          F=fixtures/scan
+          refuse() { if "$B" check "$1" 2>/tmp/err; then echo "$1 was accepted; the gate is decoration"; exit 1; fi; grep -q "$2" /tmp/err || { echo "$1: wrong refusal:"; cat /tmp/err; exit 1; }; }
+          refuse "$F/comb_cycle.plcopen.xml" "combinational cycle"
+          refuse "$F/type_mismatch.fbd" "expected BOOL"
+          refuse "$F/out_is_in.fbd" "is an input"
+          refuse "$F/no_output.fbd" "writes no output"
+          refuse "$F/edited_body.sgd" "tick body differs from NET"
+          refuse "$F/negative/ton_off_by_one.sgd" "tick body differs from NET"
+      - name: The enumerated harness simulates on every trace
+        run: |
+          B=./.lake/build/bin/taskweft_fbd_compiler
+          "$B" gen-scan /tmp/gen | grep -q "harness controller"
+          n=0
+          for fbd in /tmp/gen/*.fbd; do
+            "$B" emit-scan "$fbd" /tmp/gen/$(basename "$fbd" .fbd).sgd >/dev/null
+            for trace in /tmp/gen/trace_*.json; do
+              "$B" sim "$fbd" "$trace" > /tmp/gen/out.jsonl
+              lines=$(wc -l < /tmp/gen/out.jsonl)
+              [ "$lines" -eq 12 ] || { echo "$fbd on $trace: $lines line(s), expected 12"; exit 1; }
+              n=$((n + 1))
+            done
+          done
+          echo "$n harness x trace pair(s) simulated"
+          [ "$n" -ge 700 ] || { echo "too few pairs: $n"; exit 1; }

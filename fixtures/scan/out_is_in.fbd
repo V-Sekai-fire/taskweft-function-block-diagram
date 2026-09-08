@@ -1,0 +1,6 @@
+program out_is_in
+in a : BOOL
+out q : BOOL
+x = NOT(IN=a)
+a = x.OUT
+q = x.OUT

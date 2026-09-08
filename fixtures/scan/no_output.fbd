@@ -1,0 +1,5 @@
+program no_output
+in a : BOOL
+var q : BOOL
+x = NOT(IN=a)
+q = x.OUT

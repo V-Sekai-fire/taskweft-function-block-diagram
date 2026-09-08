@@ -10,3 +10,5 @@ build/
 priv/*.so
 priv/*.dylib
 priv/*.dll
+work/
+bench/*.tmp

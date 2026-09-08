@@ -257,7 +257,42 @@ private def boolOf (s : String) : Option Bool :=
   | "FALSE" => some false
   | _ => none
 
-private def variableOf (n : Node) : Except String Variable := do
+/-- A REAL on the page: nine decimals rounded, trailing zeros dropped, one kept, so
+    every printer agrees and none goes through `Float.toString`. -/
+def fmtReal (x : Float) : String :=
+  let neg := x < 0
+  let a := if neg then -x else x
+  let n := (a * 1e9).round.toUInt64.toNat
+  let ip := n / 1000000000
+  let fs := toString (n % 1000000000)
+  let padded := String.ofList (List.replicate (9 - fs.length) '0') ++ fs
+  let trimmed := String.ofList (padded.toList.reverse.dropWhile (· == '0')).reverse
+  let frac := if trimmed.isEmpty then "0" else trimmed
+  (if neg && n != 0 then "-" else "") ++ toString ip ++ "." ++ frac
+
+/-- A REAL literal: `1.5`, `-0.25`, `2e-3`, or a plain integer. -/
+def realOf (s : String) : Option Float :=
+  let t := trimS s
+  let (neg, body) := match t.toList with
+    | '-' :: rest => (true, String.ofList rest)
+    | _ => (false, t)
+  let v : Option Float := match body.toInt? with
+    | some i => some (Float.ofInt i)
+    | none =>
+      match Lean.Syntax.decodeScientificLitVal? body with
+      | some (m, sign, e) => some (Float.ofScientific m sign e)
+      | none => none
+  v.map fun f => if neg then -f else f
+
+/-- The initial value fields a literal fills, by the variable's type. -/
+def initials (ty : TypeTag) (raw : String) (v : Variable) : Variable :=
+  { v with
+    initialString := some (stripQuotes raw),
+    initialBool := boolOf raw,
+    initialInt := if ty == .string_ then none else (trimS raw).toInt?,
+    initialReal := if ty == .real_ || ty == .lreal_ then realOf raw else none }
+
+private def variableOf (kind : VarKind) (n : Node) : Except String Variable := do
   let name ← strAttr n "name"
   let some tyN := n.child? "type" | throw s!"variable {name} without <type>"
   let tyName := match tyN.elements with
@@ -265,12 +300,10 @@ private def variableOf (n : Node) : Except String Variable := do
     | [] => ""
   let some ty := typeOfName tyName | throw s!"variable {name}: unknown type '{tyName}'"
   let init := (n.child? "initialValue").bind (·.child? "simpleValue") |>.bind (·.attr? "value")
-  pure {
-    name, type := ty,
-    initialBool := init.bind boolOf,
-    initialInt := init.bind (fun v => (trimS v).toInt?),
-    initialString := init.map stripQuotes
-  }
+  let base : Variable := { name, type := ty, kind }
+  pure (match init with
+    | some raw => initials ty raw base
+    | none => base)
 
 private def connectionOf (pin : Node) : Except String (Nat × String) := do
   let some cpi := pin.child? "connectionPointIn" | throw s!"<{pin.name}> without <connectionPointIn>"
@@ -296,9 +329,18 @@ def pouOf (doc : Node) : Except String POU := do
   let name ← strAttr doc "name"
   let pouType := (doc.attr? "pouType").getD "program"
   if pouType != "program" then throw s!"pouType '{pouType}': stage 1 handles program POUs only"
-  let vars ← match (doc.child? "interface").bind (·.child? "localVars") with
-    | some lv => (lv.childrenNamed "variable").mapM variableOf
+  let iface := doc.child? "interface"
+  let varsIn (tag : String) (kind : VarKind) : Except String (List Variable) :=
+    match iface.bind (·.child? tag) with
+    | some lv => (lv.childrenNamed "variable").mapM (variableOf kind)
     | none => pure []
+  for other in ["inOutVars", "externalVars", "globalVars", "tempVars"] do
+    if (iface.bind (·.child? other)).isSome then throw s!"<{other}> is not part of the FBD subset"
+  let vars ← do
+    let ins ← varsIn "inputVars" .input
+    let outs ← varsIn "outputVars" .output
+    let locals ← varsIn "localVars" .local
+    pure (ins ++ outs ++ locals)
   let some fbd := (doc.child? "body").bind (·.child? "FBD") | throw "no <body><FBD> in the POU"
   let mut blocks : List BlockInstance := []
   let mut connections : List Connection := []

@@ -1,0 +1,36 @@
+# SafeGDScript, exported by taskweft-acp from session planned at 2026-09-08T06:06:28Z
+# 4 planned step(s), 4 executed. The host scene
+# (priv/godot_project/main.tscn) loads this program into a Sandbox node and performs
+# each step the guest asks for; the guest only decides what comes next.
+extends Node
+
+const PLAN := [
+	{"index": 0, "action": "face_stick", "kind": "set", "command": "", "args": ["TRUE"], "path": "face_from_stick", "status": "completed"},
+	{"index": 1, "action": "start_wave", "kind": "set", "command": "", "args": ["3"], "path": "style", "status": "completed"},
+	{"index": 2, "action": "hold_wave", "kind": "hold", "command": "", "args": ["2"], "path": "", "status": "completed"},
+	{"index": 3, "action": "stop_wave", "kind": "set", "command": "", "args": ["0"], "path": "style", "status": "completed"}
+]
+
+var next_step := 0
+var failed_at := -1
+
+func steps() -> int:
+	return PLAN.size()
+
+func step(i: int) -> Dictionary:
+	return PLAN[i]
+
+# The host calls this with the exit code of the step it just performed.
+func record(i: int, exit_code: int) -> void:
+	if exit_code == 0:
+		next_step = i + 1
+	else:
+		failed_at = i
+
+# The next step the host should perform, or -1 when the run is done or stopped.
+func pending() -> int:
+	if failed_at >= 0 or next_step >= PLAN.size():
+		return -1
+	if PLAN[next_step]["status"] != "completed":
+		return -1
+	return next_step

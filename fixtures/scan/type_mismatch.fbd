@@ -1,0 +1,6 @@
+program type_mismatch
+in n : INT
+out q : BOOL
+s = ADD(IN1=n, IN2=1)
+x = AND(IN1=s.OUT, IN2=TRUE)
+q = x.OUT

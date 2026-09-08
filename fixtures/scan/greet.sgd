@@ -1,0 +1,134 @@
+# SafeGDScript, compiled by taskweft-fbd-compiler from POU react_planned
+# scan controller: one scan per tick(inputs, dt); 1 input(s), 2 output(s), 1 local(s), 7 block(s)
+extends Node
+
+const NET := """
+{"vars":
+ [{"type": "BOOL", "name": "trigger", "kind": "in", "init": false},
+  {"type": "BOOL", "name": "face_from_stick", "kind": "out", "init": false},
+  {"type": "INT", "name": "style", "kind": "out", "init": 0},
+  {"type": "BOOL", "name": "holding0", "kind": "var", "init": false}],
+ "pou": "react_planned",
+ "outs":
+ [{"var": "holding0", "src": [12, "Q1"]},
+  {"var": "face_from_stick", "src": [5, "OUT"]},
+  {"var": "style", "src": [15, "OUT"]}],
+ "order": [2, 5, 8, 11, 12, 13, 15],
+ "blocks":
+ [{"type": "R_TRIG",
+   "out": {"Q": "BOOL"},
+   "inst": null,
+   "in": {"CLK": {"var": "trigger"}},
+   "id": 2,
+   "en": null},
+  {"type": "SEL",
+   "out": {"OUT": "BOOL"},
+   "inst": null,
+   "in":
+   {"IN1": {"text": "TRUE", "lit": true},
+    "IN0": {"var": "face_from_stick"},
+    "G": [2, "Q"]},
+   "id": 5,
+   "en": null},
+  {"type": "SEL",
+   "out": {"OUT": "INT"},
+   "inst": null,
+   "in":
+   {"IN1": {"text": "3", "lit": 3}, "IN0": {"var": "style"}, "G": [2, "Q"]},
+   "id": 8,
+   "en": null},
+  {"type": "TON",
+   "out": {"Q": "BOOL", "ET": "REAL"},
+   "inst": null,
+   "in": {"PT": {"text": "2.0", "lit": 2}, "IN": {"var": "holding0"}},
+   "id": 11,
+   "en": null},
+  {"type": "SR",
+   "out": {"Q1": "BOOL"},
+   "inst": null,
+   "in": {"S1": [2, "Q"], "R": [11, "Q"]},
+   "id": 12,
+   "en": null},
+  {"type": "R_TRIG",
+   "out": {"Q": "BOOL"},
+   "inst": null,
+   "in": {"CLK": [11, "Q"]},
+   "id": 13,
+   "en": null},
+  {"type": "SEL",
+   "out": {"OUT": "INT"},
+   "inst": null,
+   "in": {"IN1": {"text": "0", "lit": 0}, "IN0": [8, "OUT"], "G": [13, "Q"]},
+   "id": 15,
+   "en": null}]}
+"""
+
+var v_face_from_stick: bool = false
+var v_style: int = 0
+var v_holding0: bool = false
+var s2_m: bool = false
+var s11_et: float = 0.0
+var s12_run: bool = false
+var s13_m: bool = false
+
+func reset() -> void:
+	v_face_from_stick = false
+	v_style = 0
+	v_holding0 = false
+	s2_m = false
+	s11_et = 0.0
+	s12_run = false
+	s13_m = false
+
+func state() -> Dictionary:
+	return {"face_from_stick": v_face_from_stick, "style": v_style, "holding0": v_holding0, "s2_m": s2_m, "s11_et": s11_et, "s12_run": s12_run, "s13_m": s13_m}
+
+func tick(inputs: Dictionary, dt: float) -> Dictionary:
+	var i_trigger: bool = bool(inputs.get("trigger", false))
+	# R_TRIG#2
+	var w2_Q: bool = false
+	var n2_m = s2_m
+	var w2_ENO: bool = true
+	w2_Q = i_trigger and not s2_m
+	n2_m = i_trigger
+	# SEL#5
+	var w5_OUT: bool = false
+	var w5_ENO: bool = true
+	w5_OUT = true if w2_Q else v_face_from_stick
+	# SEL#8
+	var w8_OUT: int = 0
+	var w8_ENO: bool = true
+	w8_OUT = 3 if w2_Q else v_style
+	# TON#11
+	var w11_Q: bool = false
+	var w11_ET: float = 0.0
+	var n11_et = s11_et
+	var w11_ENO: bool = true
+	n11_et = 0.0 if not v_holding0 else min(s11_et + dt, 2.0)
+	w11_Q = v_holding0 and n11_et >= 2.0
+	w11_ET = n11_et
+	# SR#12
+	var w12_Q1: bool = false
+	var n12_run = s12_run
+	var w12_ENO: bool = true
+	w12_Q1 = w2_Q or ((not w11_Q) and s12_run)
+	n12_run = w12_Q1
+	# R_TRIG#13
+	var w13_Q: bool = false
+	var n13_m = s13_m
+	var w13_ENO: bool = true
+	w13_Q = w11_Q and not s13_m
+	n13_m = w11_Q
+	# SEL#15
+	var w15_OUT: int = 0
+	var w15_ENO: bool = true
+	w15_OUT = 0 if w13_Q else w8_OUT
+	# commit block state
+	s2_m = n2_m
+	s11_et = n11_et
+	s12_run = n12_run
+	s13_m = n13_m
+	v_holding0 = w12_Q1
+	v_face_from_stick = w5_OUT
+	v_style = w15_OUT
+	return {"face_from_stick": v_face_from_stick, "style": v_style}

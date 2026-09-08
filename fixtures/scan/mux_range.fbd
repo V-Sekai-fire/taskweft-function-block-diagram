@@ -1,0 +1,5 @@
+program mux_range
+in k : INT
+out v : INT
+m = MUX(K=k, IN0=10, IN1=20, IN2=30)
+v = m.OUT
