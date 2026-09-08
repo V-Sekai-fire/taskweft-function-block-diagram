@@ -1,0 +1,29 @@
+# SafeGDScript, compiled by taskweft-fbd-compiler from POU write_hello
+# 2 step(s). The host scene loads this program into a Sandbox node and
+# performs each step the guest asks for; the guest only decides what comes next.
+extends Node
+
+const PLAN := [
+	{"index": 0, "action": "WRITE_FILE#3", "kind": "write", "command": "", "args": [], "path": "out.txt", "content": "hello", "status": "planned"},
+	{"index": 1, "action": "READ_FILE#5", "kind": "read", "command": "", "args": [], "path": "out.txt", "content": "", "status": "planned"}
+]
+
+var next_step := 0
+var failed_at := -1
+
+func steps() -> int:
+	return PLAN.size()
+
+func step(i: int) -> Dictionary:
+	return PLAN[i]
+
+func record(i: int, exit_code: int) -> void:
+	if exit_code == 0:
+		next_step = i + 1
+	else:
+		failed_at = i
+
+func pending() -> int:
+	if failed_at >= 0 or next_step >= PLAN.size():
+		return -1
+	return next_step

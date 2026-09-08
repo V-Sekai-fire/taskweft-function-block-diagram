@@ -1,24 +1,31 @@
 /-
-RFD 2152 stage 1 parser: PLCopen XML -> FBD AST via `Std.Xml`.
+RFD 2152 stage 2 parser: PLCopen XML -> FBD AST.
 
-Recognises the shape `Taskweft.OpenPLC.PLCopen.emit/1` produces
-(SR_L / AND / MOVE / TON blocks in a `<pou pouType="program">`);
-tags for the rest of the standard block library are AST-recognised
-but the parser only fills in the block kind, leaving the semantics
-to stage 2's emitter.
+A small element tree is read from the text (tags, attributes, text, entities;
+comments and declarations skipped), then walked into a `POU`. The subset is the
+one `priv/grammars/plcopen_fbd.gbnf` in transport-taskweft-acp admits: a
+`program` POU, `localVars` with BOOL/INT/STRING and an optional simple initial
+value, and an FBD body of `inVariable` literals, `block`s wired through
+`connectionPointIn`, and `outVariable`s. Anything outside that is refused with a
+message naming the element, because a parser that accepts what the control
+grammar produces is decoration.
 
 SPDX-License-Identifier: MIT OR Apache-2.0
 -/
 import TaskweftFbdCompiler
-import Std.Internal.Parsec
 
 namespace TaskweftFbdCompiler.Parser
 open TaskweftFbdCompiler
 
 /-- Case-insensitive mapping from an IEC 61131-3 typeName attribute
-    to our `Block` tag. Extended per stage as emitter coverage grows. -/
+    to our `Block` tag. The three operating-system callables are the
+    blocks stage 1 lowers; the standard library is recognised so a
+    diagram that uses it parses, and the emitter says what it skipped. -/
 def blockOfTypeName (s : String) : Option Block :=
   match s.toUpper with
+  | "WRITE_FILE" => some .os_write
+  | "RUN"        => some .os_run
+  | "READ_FILE"  => some .os_read
   | "SR_L"    => some .sr_l
   | "RS"      => some .rs
   | "SR"      => some .sr
@@ -53,33 +60,272 @@ def blockOfTypeName (s : String) : Option Block :=
   | "R_TRIG"  => some .r_trig
   | _         => none
 
-/-- Types the emitter knows about. Stage 1 sees only BOOL in the
-    fixture; extended as consumers name new ones. -/
 def typeOfName (s : String) : Option TypeTag :=
   match s.toUpper with
-  | "BOOL" => some .bool_
-  | "INT"  => some .int_
-  | "DINT" => some .dint_
-  | "REAL" => some .real_
-  | "TIME" => some .time_
-  | _      => none
+  | "BOOL"   => some .bool_
+  | "INT"    => some .int_
+  | "DINT"   => some .dint_
+  | "REAL"   => some .real_
+  | "TIME"   => some .time_
+  | "STRING" => some .string_
+  | _        => none
 
-/-- Extremely small XML walker over the string form. Stage 1 lifts
-    the counts the smoke test needs (variables, blocks) without a
-    full DOM; stage 2 replaces this with a `Std.Xml` DOM walk once
-    the parser needs the wire graph too.
+/-! ## The element tree -/
 
-    Returns the number of `<variable name="..."` occurrences and the
-    number of `<block localId="..."` occurrences. -/
-def countMarkers (xml : String) : Nat × Nat :=
-  let vars   := (xml.splitOn "<variable name=").length - 1
-  let blocks := (xml.splitOn "<block localId=").length - 1
-  (vars, blocks)
+inductive Node where
+  | element (name : String) (attrs : List (String × String)) (children : List Node)
+  | text (s : String)
+  deriving Repr, Inhabited
 
-/-- One-shot parse: read the file at `path`, return `(varCount,
-    blockCount)`. Stage 2 replaces this with a real POU AST. -/
-def countMarkersOf (path : System.FilePath) : IO (Nat × Nat) := do
+abbrev P := StateT (List Char) (Except String)
+
+private def peek : P (Option Char) := do return (← get).head?
+private def advance : P Unit := modify List.tail
+private def failAt {α : Type} (msg : String) : P α := do
+  let rest := String.mk ((← get).take 24)
+  throw s!"{msg} at '{rest}'"
+private def skipWs : P Unit := modify (List.dropWhile Char.isWhitespace)
+
+private def expectChar (c : Char) : P Unit := do
+  match ← peek with
+  | some d => if c == d then advance else failAt s!"expected '{c}'"
+  | none => throw s!"expected '{c}' at end of input"
+
+private def takeWhile (p : Char → Bool) : P String := do
+  let (a, b) := (← get).span p
+  set b
+  return String.mk a
+
+private def isNameChar (c : Char) : Bool :=
+  c.isAlphanum || c == '_' || c == ':' || c == '-' || c == '.'
+
+private def ident : P String := do
+  let n ← takeWhile isNameChar
+  if n.isEmpty then failAt "expected a name" else return n
+
+def unescape (s : String) : String :=
+  s.replace "&lt;" "<" |>.replace "&gt;" ">" |>.replace "&quot;" "\""
+    |>.replace "&apos;" "'" |>.replace "&amp;" "&"
+
+private def attr : P (String × String) := do
+  let k ← ident
+  skipWs
+  expectChar '='
+  skipWs
+  match ← peek with
+  | some '"' =>
+    advance
+    let v ← takeWhile (· != '"')
+    expectChar '"'
+    return (k, unescape v)
+  | some '\'' =>
+    advance
+    let v ← takeWhile (· != '\'')
+    expectChar '\''
+    return (k, unescape v)
+  | _ => failAt s!"attribute {k} needs a quoted value"
+
+private partial def attrs : P (List (String × String)) := do
+  skipWs
+  match ← peek with
+  | some c =>
+    if c.isAlpha || c == '_' then
+      let a ← attr
+      let rest ← attrs
+      return a :: rest
+    else
+      return []
+  | none => return []
+
+mutual
+  private partial def node : P Node := do
+    skipWs
+    match ← peek with
+    | some '<' =>
+      advance
+      match ← peek with
+      | some '?' =>
+        let _ ← takeWhile (· != '>')
+        expectChar '>'
+        node
+      | some '!' =>
+        let _ ← takeWhile (· != '>')
+        expectChar '>'
+        node
+      | _ =>
+        let name ← ident
+        let as ← attrs
+        skipWs
+        match ← peek with
+        | some '/' =>
+          advance
+          expectChar '>'
+          return .element name as []
+        | some '>' =>
+          advance
+          let cs ← children name
+          return .element name as cs
+        | _ => failAt s!"bad tag <{name}"
+    | some _ =>
+      let t ← takeWhile (· != '<')
+      return .text (unescape t)
+    | none => throw "unexpected end of input"
+
+  private partial def children (name : String) : P (List Node) := do
+    skipWs
+    match ← get with
+    | '<' :: '/' :: _ =>
+      advance
+      advance
+      let n ← ident
+      skipWs
+      expectChar '>'
+      if n == name then return [] else throw s!"</{n}> closes <{name}>"
+    | [] => throw s!"<{name}> is never closed"
+    | _ =>
+      let c ← node
+      let rest ← children name
+      return c :: rest
+end
+
+/-- Parse one document. Leading declarations and comments are skipped;
+    trailing whitespace is allowed; anything else after the root is refused. -/
+def parseXml (s : String) : Except String Node := do
+  let (n, rest) ← node.run s.toList
+  if rest.all Char.isWhitespace then pure n
+  else throw s!"content after the root element: '{String.mk (rest.take 24)}'"
+
+namespace Node
+
+def name : Node → String
+  | .element n _ _ => n
+  | .text _ => ""
+
+def attr? (n : Node) (k : String) : Option String :=
+  match n with
+  | .element _ as _ => as.lookup k
+  | .text _ => none
+
+def elements : Node → List Node
+  | .element _ _ cs => cs.filter fun c => match c with | .element .. => true | _ => false
+  | .text _ => []
+
+def child? (n : Node) (k : String) : Option Node :=
+  n.elements.find? (·.name == k)
+
+def childrenNamed (n : Node) (k : String) : List Node :=
+  n.elements.filter (·.name == k)
+
+def textContent : Node → String
+  | .element _ _ cs => String.join (cs.map fun c => match c with | .text t => t | _ => "")
+  | .text t => t
+
+end Node
+
+/-! ## From the tree to the POU -/
+
+/-- Whitespace-trim through the character list, so the result is a `String` on every
+    toolchain the workspace pins. -/
+def trimS (s : String) : String :=
+  String.mk ((s.toList.dropWhile Char.isWhitespace).reverse.dropWhile Char.isWhitespace).reverse
+
+/-- `'text'` -> `text`; anything else unchanged after trimming. -/
+def stripQuotes (s : String) : String :=
+  let cs := (trimS s).toList
+  match cs with
+  | '\'' :: rest =>
+    match rest.reverse with
+    | '\'' :: mid => String.mk mid.reverse
+    | _ => String.mk cs
+  | _ => String.mk cs
+
+private def natAttr (n : Node) (k : String) : Except String Nat :=
+  match n.attr? k with
+  | some v => match (trimS v).toNat? with
+    | some i => pure i
+    | none => throw s!"<{n.name} {k}=\"{v}\">: not a number"
+  | none => throw s!"<{n.name}> without {k}"
+
+private def strAttr (n : Node) (k : String) : Except String String :=
+  match n.attr? k with
+  | some v => pure v
+  | none => throw s!"<{n.name}> without {k}"
+
+private def boolOf (s : String) : Option Bool :=
+  match (trimS s).toUpper with
+  | "TRUE" => some true
+  | "FALSE" => some false
+  | _ => none
+
+private def variableOf (n : Node) : Except String Variable := do
+  let name ← strAttr n "name"
+  let some tyN := n.child? "type" | throw s!"variable {name} without <type>"
+  let tyName := match tyN.elements with
+    | t :: _ => t.name
+    | [] => ""
+  let some ty := typeOfName tyName | throw s!"variable {name}: unknown type '{tyName}'"
+  let init := (n.child? "initialValue").bind (·.child? "simpleValue") |>.bind (·.attr? "value")
+  pure {
+    name, type := ty,
+    initialBool := init.bind boolOf,
+    initialInt := init.bind (fun v => (trimS v).toInt?),
+    initialString := init.map stripQuotes
+  }
+
+private def connectionOf (pin : Node) : Except String (Nat × String) := do
+  let some cpi := pin.child? "connectionPointIn" | throw s!"<{pin.name}> without <connectionPointIn>"
+  let some conn := cpi.child? "connection" | throw s!"<{pin.name}>: <connectionPointIn> without <connection>"
+  let ref ← natAttr conn "refLocalId"
+  let formal := (conn.attr? "formalParameter").getD "OUT"
+  pure (ref, formal)
+
+private def blockOf (n : Node) : Except String BlockInstance := do
+  let localId ← natAttr n "localId"
+  let typeName ← strAttr n "typeName"
+  let some block := blockOfTypeName typeName | throw s!"block {localId}: unknown typeName '{typeName}'"
+  let inputs := ((n.child? "inputVariables").map (·.childrenNamed "variable")).getD []
+  let wires ← inputs.mapM fun pin => do
+    let formal ← strAttr pin "formalParameter"
+    let (ref, srcFormal) ← connectionOf pin
+    pure (formal, InputSource.fromBlock ref srcFormal)
+  pure { localId, block, inst := n.attr? "instanceName", wires }
+
+/-- Walk a parsed document into a program POU. -/
+def pouOf (doc : Node) : Except String POU := do
+  if doc.name != "pou" then throw s!"root element is <{doc.name}>, expected <pou>"
+  let name ← strAttr doc "name"
+  let pouType := (doc.attr? "pouType").getD "program"
+  if pouType != "program" then throw s!"pouType '{pouType}': stage 1 handles program POUs only"
+  let vars ← match (doc.child? "interface").bind (·.child? "localVars") with
+    | some lv => (lv.childrenNamed "variable").mapM variableOf
+    | none => pure []
+  let some fbd := (doc.child? "body").bind (·.child? "FBD") | throw "no <body><FBD> in the POU"
+  let mut blocks : List BlockInstance := []
+  let mut connections : List Connection := []
+  let mut inputs : List (Nat × String) := []
+  for el in fbd.elements do
+    match el.name with
+    | "block" =>
+      blocks := blocks ++ [← blockOf el]
+    | "inVariable" =>
+      let id ← natAttr el "localId"
+      let some ex := el.child? "expression" | throw s!"inVariable {id} without <expression>"
+      inputs := inputs ++ [(id, trimS ex.textContent)]
+    | "outVariable" =>
+      let id ← natAttr el "localId"
+      let (ref, formal) ← connectionOf el
+      let some ex := el.child? "expression" | throw s!"outVariable {id} without <expression>"
+      connections := connections ++ [{ sourceLocalId := ref, sourceFormal := formal, target := .toVar (trimS ex.textContent) }]
+    | other => throw s!"<{other}> is not part of the FBD subset"
+  pure { name, type := .program, vars, network := { blocks, connections, inputs } }
+
+/-- Text to POU in one step. -/
+def parsePou (xml : String) : Except String POU := do
+  let doc ← parseXml xml
+  pouOf doc
+
+def parsePouFile (path : System.FilePath) : IO (Except String POU) := do
   let xml ← IO.FS.readFile path
-  pure (countMarkers xml)
+  pure (parsePou xml)
 
 end TaskweftFbdCompiler.Parser

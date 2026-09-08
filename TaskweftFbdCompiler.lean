@@ -16,6 +16,7 @@ inductive TypeTag where
   | real_  | lreal_
   | time_  | date_  | tod_   | dt_
   | byte_  | word_  | dword_
+  | string_
   deriving DecidableEq, Repr
 
 structure Variable where
@@ -23,6 +24,7 @@ structure Variable where
   type        : TypeTag
   initialBool : Option Bool := none
   initialInt  : Option Int  := none
+  initialString : Option String := none
   deriving Repr
 
 /-- Every IEC 61131-3 standard function block the emitter needs a
@@ -46,6 +48,8 @@ inductive Block where
   | eq | ne | lt | gt | le | ge
   -- edges
   | f_trig | r_trig
+  -- operating-system callables the host performs (RFD 2154's callable syscall)
+  | os_write | os_run | os_read
   deriving DecidableEq, Repr
 
 /-- What an input pin draws from: a literal expression, another block's
@@ -87,6 +91,8 @@ structure Connection where
 structure Network where
   blocks      : List BlockInstance
   connections : List Connection := []
+  -- `<inVariable localId>` literals the blocks draw from, by localId.
+  inputs      : List (Nat × String) := []
   deriving Repr
 
 /-- One Program Organisation Unit. Stage 1 only handles

@@ -1,0 +1,9 @@
+<pou name="soup" pouType="program">
+  <interface><localVars/></interface>
+  <body>
+    <FBD>
+      <note>this is what the control grammar admits and the parser must refuse</note>
+      <block localId="1" typeName="WRITE_FILE"><inputVariables/><outputVariables/></block>
+    </FBD>
+  </body>
+</pou>

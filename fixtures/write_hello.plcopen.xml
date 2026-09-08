@@ -1,0 +1,33 @@
+<pou name="write_hello" pouType="program">
+  <interface>
+    <localVars>
+      <variable name="done"><type><BOOL/></type></variable>
+    </localVars>
+  </interface>
+  <body>
+    <FBD>
+      <inVariable localId="1"><expression>'out.txt'</expression></inVariable>
+      <inVariable localId="2"><expression>'hello'</expression></inVariable>
+      <block localId="3" typeName="WRITE_FILE">
+        <inputVariables>
+          <variable formalParameter="PATH"><connectionPointIn><connection refLocalId="1" formalParameter="OUT"/></connectionPointIn></variable>
+          <variable formalParameter="TEXT"><connectionPointIn><connection refLocalId="2" formalParameter="OUT"/></connectionPointIn></variable>
+        </inputVariables>
+        <outputVariables>
+          <variable formalParameter="ENO"/>
+        </outputVariables>
+      </block>
+      <inVariable localId="4"><expression>'out.txt'</expression></inVariable>
+      <block localId="5" typeName="READ_FILE">
+        <inputVariables>
+          <variable formalParameter="EN"><connectionPointIn><connection refLocalId="3" formalParameter="ENO"/></connectionPointIn></variable>
+          <variable formalParameter="PATH"><connectionPointIn><connection refLocalId="4" formalParameter="OUT"/></connectionPointIn></variable>
+        </inputVariables>
+        <outputVariables>
+          <variable formalParameter="ENO"/>
+        </outputVariables>
+      </block>
+      <outVariable localId="6"><connectionPointIn><connection refLocalId="5" formalParameter="ENO"/></connectionPointIn><expression>done</expression></outVariable>
+    </FBD>
+  </body>
+</pou>
