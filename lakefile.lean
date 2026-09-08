@@ -10,6 +10,7 @@ lean_lib TaskweftFbdCompiler where
     `TaskweftFbdCompiler.Parser,
     `TaskweftFbdCompiler.Semantics,
     `TaskweftFbdCompiler.Riscv,
+    `TaskweftFbdCompiler.Sgd,
     `TaskweftFbdCompiler.Elf
   ]
 
