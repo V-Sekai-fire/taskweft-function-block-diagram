@@ -1,0 +1,5 @@
+program chained
+var done : BOOL
+b1 = WRITE_FILE(PATH="a.txt", TEXT="one")
+b2 = WRITE_FILE(EN=b1.ENO, PATH="b.txt", TEXT="two")
+done = b2.ENO
