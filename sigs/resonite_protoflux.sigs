@@ -14,6 +14,9 @@
 
 # ---- lifecycle (graph entry points) ------------------------------
 
+#
+# index-only: the ProtoFlux index is `Namespace/Node  impulse // value`, not a dotted key
+
 Runtime/OnStart                                    _  //  _  -> Fire  //  _
 Runtime/Update                                     _  //  _  -> Fire  //  DeltaSeconds
 Runtime/UpdateWithDelta                            _  //  _  -> Fire  //  Delta

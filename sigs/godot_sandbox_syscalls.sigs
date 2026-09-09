@@ -16,6 +16,9 @@
 # ---- Format: `<decimal ecall number>  <symbol>  <notes>` ------
 
 # --- generic ---
+#
+# index-only: an ecall number and a symbol, not a callable signature; the guest ABI, not a CALL surface
+
 500  ECALL_PRINT                     # print variant(s) to godot's console
 550  ECALL_PRINT_CHANNEL             # print to a named channel
 511  ECALL_THROW                     # raise a guest exception up to godot

@@ -18,6 +18,18 @@
 
 # ---- core object model --------------------------------------------
 
+#
+# What the corpus deliberately leaves uncovered, and why. `export-tables`
+# reads these, so a census counts them as declared rather than as a gap.
+# uncovered: Object.connect -- a Callable has no literal form the plan can carry
+# uncovered: RefCounted.unreference -- it frees the target when the count reaches zero
+# uncovered: Node._process -- a virtual callback the engine calls; not callable on a plain node
+# uncovered: Node._physics_process -- a virtual callback the engine calls; not callable on a plain node
+# uncovered: Node._enter_tree -- a virtual callback the engine calls; not callable on a plain node
+# uncovered: Node._exit_tree -- a virtual callback the engine calls; not callable on a plain node
+# uncovered: MainLoop._process -- a virtual callback the engine calls; not callable on the tree
+# uncovered: OS.get_ticks_msec -- removed in Godot 4; Time.get_ticks_msec is the call the engine has
+
 Object.get_class() -> String
 Object.get(property) -> Variant
 Object.set(property, value) ->

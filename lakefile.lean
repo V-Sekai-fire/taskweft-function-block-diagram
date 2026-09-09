@@ -11,6 +11,7 @@ lean_lib TaskweftFbdCompiler where
     `TaskweftFbdCompiler.Semantics,
     `TaskweftFbdCompiler.Riscv,
     `TaskweftFbdCompiler.Sigs,
+    `TaskweftFbdCompiler.Tables,
     `TaskweftFbdCompiler.Sgd,
     `TaskweftFbdCompiler.Dsl,
     `TaskweftFbdCompiler.Xml,
