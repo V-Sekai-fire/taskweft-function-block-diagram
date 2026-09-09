@@ -12,3 +12,4 @@ priv/*.dylib
 priv/*.dll
 work/
 bench/*.tmp
+hello.elf
