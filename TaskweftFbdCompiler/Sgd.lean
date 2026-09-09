@@ -149,6 +149,12 @@ private def stepOf (pou : POU) (tables : List Sigs.Table) (i : Nat) (b : BlockIn
 def lower (pou : POU) (tables : List Sigs.Table := []) : Except String Lowered := do
   let os := sortById (pou.network.blocks.filter (isOs ·.block))
   let skipped := (pou.network.blocks.filter (!isOs ·.block)).map fun b => (b.localId, blockName b.block)
+  let ids := os.map (·.localId)
+  let roots := os.filter fun b => match enSource b with
+    | some id => !(ids.contains id)
+    | none => true
+  if roots.length > 1 then
+    throw s!"{", ".intercalate (roots.map fun b => s!"{blockName b.block}#{b.localId}")}: each reaches a host without an EN from another such block, so only the line order separates them; wire EN to the previous block's ENO"
   let ordered ← order os [] (os.length + 1)
   let mut steps : List Step := []
   let mut i := 0
