@@ -137,6 +137,8 @@ jobs:
           refuse "$F/type_mismatch.fbd" "expected BOOL"
           refuse "$F/out_is_in.fbd" "is an input"
           refuse "$F/no_output.fbd" "writes no output"
+          refuse "$F/unchained_effects.fbd" "only the line order separates them"
+          "$B" check "$F/chained_effects.fbd" > /dev/null || { echo "chained_effects.fbd was refused; the rule is too strict"; exit 1; }
           refuse "$F/edited_body.sgd" "tick body differs from NET"
           refuse "$F/negative/ton_off_by_one.sgd" "tick body differs from NET"
       - name: The enumerated harness simulates on every trace
